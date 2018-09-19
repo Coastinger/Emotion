@@ -12,10 +12,11 @@ from utils.preprocessor import preprocess_input
 from picamera import PiCamera
 from picamera.array import PiRGBArray
 #from imutils.video.pivideostream import PiVideoStream
-import modules.PiVideoStream
-import modules.lcddriver
-import modules.Stepper
+import modules.PiVideoStream as PiVideoStream
+import modules.lcddriver as lcddriver
+import modules.Stepper as Stepper
 import time
+import RPi.GPIO as GPIO
 
 USE_PICAM = True # If false, loads video file source
 USE_THREAD = True
@@ -26,7 +27,7 @@ lcd = lcddriver.lcd()
 # set up stepper
 GPIO.setmode(GPIO.BOARD)
 GPIO.setwarnings(False)
-stepper = Stepper()
+stepper = Stepper.Stepper()
 step = 5 # degree
 
 # parameters for loading data and images
@@ -49,13 +50,13 @@ emotion_window = []
 
 # starting video streaming
 
-cv2.namedWindow('window_frame')
+#cv2.namedWindow('window_frame')
 
 # Select video or webcam feed
 cap = None
 if USE_PICAM:
     if USE_THREAD:
-        vs = PiVideoStream().start()
+        vs = PiVideoStream.PiVideoStream().start()
         time.sleep(1)
     else:
         # initialize the camera and stream
@@ -71,7 +72,7 @@ else:
 
 while True: #cap.isOpened():
     if USE_THREAD:
-        ret, bgr_image = vs.read() #cap.read()
+        bgr_image = vs.read()
     else:
         ret, bgr_image = cap.read()
 
@@ -125,10 +126,13 @@ while True: #cap.isOpened():
             stepper.LEFT_TURN(step)
             #color = emotion_probability * np.asarray((0, 0, 255))
         elif emotion_text == 'happy':
+            stepper.LEFT_TURN(0)
             #color = emotion_probability * np.asarray((255, 255, 0))
         elif emotion_text == 'surprise':
+            stepper.RIGHT_TURN(0)
             #color = emotion_probability * np.asarray((0, 255, 255))
         else:
+            lcd.lcd_display_string('--- Neutral ---', 2)
             #color = emotion_probability * np.asarray((0, 255, 0))
 
         #color = color.astype(int)

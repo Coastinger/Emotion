@@ -1,7 +1,7 @@
-import sys
-sys.path.append("./lib")
+#import sys
+#sys.path.append("../modules")
 
-import i2c_lib
+from . import i2c_lib
 from time import *
 
 # LCD Address
