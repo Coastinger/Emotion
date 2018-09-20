@@ -25,9 +25,8 @@ USE_THREAD = True
 lcd = lcddriver.lcd()
 
 # set up stepper
-GPIO.setmode(GPIO.BOARD)
-GPIO.setwarnings(False)
-stepper = Stepper.Stepper()
+bounds = 30
+stepper = Stepper.Stepper(bounds)
 step = 5 # degree
 
 # parameters for loading data and images

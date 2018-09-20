@@ -1,8 +1,8 @@
 import time
 import RPi.GPIO as GPIO
 
-#GPIO.setmode(GPIO.BOARD)
-#GPIO.setwarnings(False)
+GPIO.setmode(GPIO.BOARD)
+GPIO.setwarnings(False)
 
 # https://www.python-forum.de/viewtopic.php?t=36037
 
@@ -11,12 +11,13 @@ full_circle = 510.0
 
 class Stepper:
 
-    def __init__(self):
+    def __init__(self, bounds):
         GPIO.setup(A, GPIO.OUT)
         GPIO.setup(B, GPIO.OUT)
         GPIO.setup(C, GPIO.OUT)
         GPIO.setup(D, GPIO.OUT)
-        #GPIO.output(pin, False)
+        self.pos = 0
+        self.bounds = bounds
 
     def GPIO_SETUP(self, a, b, c, d):
         GPIO.output(A, a)
@@ -26,6 +27,7 @@ class Stepper:
         time.sleep(0.001)
 
     def RIGHT_TURN(self, deg):
+        self.setPos(deg)
         degree = full_circle/360*deg
         self.GPIO_SETUP(0,0,0,0)
 
@@ -41,6 +43,7 @@ class Stepper:
             degree -= 1
 
     def LEFT_TURN(self, deg):
+        self.setPos(-deg)
         degree = full_circle/360*deg
         self.GPIO_SETUP(0,0,0,0)
 
@@ -54,3 +57,21 @@ class Stepper:
             self.GPIO_SETUP(1,1,0,0)
             self.GPIO_SETUP(1,0,0,0)
             degree -= 1
+
+    def setPos(self, deg):
+        self.pos = deg
+
+    def getPos(self):
+        return self.pos
+
+    def calibrate(self):
+        # Return to position 0.
+        if self.pos > 0:
+           self.LEFT_TURN(self.pos)
+        else:
+           self.RIGHT_TURN(abs(self.pos))
+
+    def is_valid(self, deg):
+        if self.getPos() + deg > self.bounds:
+           return False
+        return True
