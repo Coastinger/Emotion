@@ -29,6 +29,9 @@ bounds = 30
 stepper = Stepper.Stepper(bounds)
 step = 5 # degree
 
+# turorial
+turorial = True
+
 # parameters for loading data and images
 emotion_model_path = './models/emotion_model.hdf5'
 emotion_labels = get_labels('fer2013')
@@ -68,6 +71,27 @@ if USE_PICAM:
         time.sleep(1)
 else:
     cap = cv2.VideoCapture('./demo/dinner.mp4') # Video file source
+
+if tutorial:
+    lcd.lcd_display_string_animated('   EMOTRONOM    ', 1)
+    time.sleep(1)
+    lcd.lcd_display_string_animated('Emotion Detector', 2)
+    time.sleep(3)
+    lcd.lcd_clear()
+    lcd.lcd_display_string_animated('    TUTORIAL    ', 1)
+    time.sleep(2)
+    lcd.lcd_display_string_long('There are some emotions in the world, or better, there are five emotions.', 2)
+    time.sleep(1)
+    lcd.lcd_display_string_long('Happy, Angry, Surprise, Sad and Neutral.', 2)
+    time.sleep(1)
+    lcd.lcd_display_string_long('Goal is first to guess the emotion by the amplitude.', 2)
+    time.sleep(0.5)
+    lcd.lcd_display_string_long('Then to keep it steady above the level difficulty.', 2)
+    time.sleep(0.5)
+    lcd.lcd_display_string_long('Who perseveres the longest, should be the new KING.', 2)
+    lcd.lcd_display_string_animated('    Have Fun    ', 1)
+    time.sleep(2)
+    lcd.lcd_clear()
 
 while True: #cap.isOpened():
     if USE_THREAD:

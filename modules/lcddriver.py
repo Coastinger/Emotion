@@ -84,7 +84,7 @@ class lcd:
    def lcd_write(self, cmd, mode=0):
       self.lcd_write_four_bits(mode | (cmd & 0xF0))
       self.lcd_write_four_bits(mode | ((cmd << 4) & 0xF0))
-      
+
    #turn on/off the lcd backlight
    def lcd_backlight(self, state):
       if state in ("on","On","ON"):
@@ -100,13 +100,37 @@ class lcd:
          self.lcd_write(0x80)
       if line == 2:
          self.lcd_write(0xC0)
-      if line == 3:
-         self.lcd_write(0x94)
-      if line == 4:
-         self.lcd_write(0xD4)
 
       for char in string:
          self.lcd_write(ord(char), Rs)
+
+   # Characters apper one after another with given delay
+   def lcd_display_string_animated(self, string, line, delay):
+      if line == 1:
+         self.lcd_write(0x80)
+      if line == 2:
+         self.lcd_write(0xC0)
+
+      for char in string:
+         self.lcd_write(ord(char), Rs)
+         time.sleep(delay)
+
+   # put string longer than 16 characters on one line
+   def lcd_display_string_long(self, string, line, delay):
+      if line == 1:
+         self.lcd_write(0x80)
+      if line == 2:
+         self.lcd_write(0xC0)
+
+      ext_str = '                ' + string
+
+      for i in range(len(ext_str)):
+          if i+16 < len(ext_str):
+              str_part = ext_str[i:i+16]
+          else:
+              str_part = ext_str[i:]  
+          for char in str_part:
+             self.lcd_write(ord(char), Rs)
 
    # clear lcd and set to home
    def lcd_clear(self):
