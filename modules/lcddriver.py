@@ -113,24 +113,26 @@ class lcd:
 
       for char in string:
          self.lcd_write(ord(char), Rs)
-         time.sleep(delay)
+         sleep(delay)
 
    # put string longer than 16 characters on one line
    def lcd_display_string_long(self, string, line, delay):
-      if line == 1:
-         self.lcd_write(0x80)
-      if line == 2:
-         self.lcd_write(0xC0)
 
       ext_str = '                ' + string
 
       for i in range(len(ext_str)):
-          if i+16 < len(ext_str):
-              str_part = ext_str[i:i+16]
+          if line == 1:
+             self.lcd_write(0x80)
+          if line == 2:
+             self.lcd_write(0xC0)     
+          if i+15 < len(ext_str):
+              str_part = ext_str[i:i+15]
           else:
               str_part = ext_str[i:]  
           for char in str_part:
              self.lcd_write(ord(char), Rs)
+          sleep(delay)
+          self.lcd_clear()
 
    # clear lcd and set to home
    def lcd_clear(self):

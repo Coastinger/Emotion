@@ -18,6 +18,8 @@ import modules.Stepper as Stepper
 import time
 import RPi.GPIO as GPIO
 
+tutorial = True
+
 USE_PICAM = True # If false, loads video file source
 USE_THREAD = True
 
@@ -28,9 +30,6 @@ lcd = lcddriver.lcd()
 bounds = 30
 stepper = Stepper.Stepper(bounds)
 step = 5 # degree
-
-# turorial
-turorial = True
 
 # parameters for loading data and images
 emotion_model_path = './models/emotion_model.hdf5'
@@ -72,26 +71,41 @@ if USE_PICAM:
 else:
     cap = cv2.VideoCapture('./demo/dinner.mp4') # Video file source
 
+lcd.lcd_display_string_animated('   EMOTRONOM    ', 1, 0.2)
+time.sleep(1)
+lcd.lcd_display_string_animated('Emotion Detector', 2, 0.1)
+time.sleep(3)
+lcd.lcd_clear()
+
 if tutorial:
-    lcd.lcd_display_string_animated('   EMOTRONOM    ', 1)
-    time.sleep(1)
-    lcd.lcd_display_string_animated('Emotion Detector', 2)
-    time.sleep(3)
-    lcd.lcd_clear()
-    lcd.lcd_display_string_animated('    TUTORIAL    ', 1)
-    time.sleep(2)
-    lcd.lcd_display_string_long('There are some emotions in the world, or better, there are five emotions.', 2)
-    time.sleep(1)
-    lcd.lcd_display_string_long('Happy, Angry, Surprise, Sad and Neutral.', 2)
-    time.sleep(1)
-    lcd.lcd_display_string_long('Goal is first to guess the emotion by the amplitude.', 2)
+    lcd.lcd_display_string_animated('    TUTORIAL    ', 1, 0.1)
     time.sleep(0.5)
-    lcd.lcd_display_string_long('Then to keep it steady above the level difficulty.', 2)
-    time.sleep(0.5)
-    lcd.lcd_display_string_long('Who perseveres the longest, should be the new KING.', 2)
-    lcd.lcd_display_string_animated('    Have Fun    ', 1)
-    time.sleep(2)
     lcd.lcd_clear()
+    lcd.lcd_display_string_long('There are five emotions.', 1, 0.28)
+    time.sleep(0.1)
+    lcd.lcd_display_string_long('Neutral, Happy, Angry, Sad and Surprise.', 2, 0.28)
+    time.sleep(0.1)
+    lcd.lcd_display_string_long('Guess the emotion by facial expressions.', 1, 0.28)
+    time.sleep(0.1)
+    lcd.lcd_display_string_long('Then to keep the amplitude high.', 2, 0.28)
+    time.sleep(0.1)
+    lcd.lcd_display_string_long('Who perseveres the longest, is the KING.', 1, 0.28)
+    lcd.lcd_clear()
+    lcd.lcd_display_string_animated('    Have Fun    ', 2, 0.1)
+    time.sleep(1)
+    lcd.lcd_clear()
+
+lcd.lcd_display_string_animated('First Round', 1, 0.1)
+lcd.lcd_clear()
+lcd.lcd_display_string_animated('Countdown Pl 1', 1, 0.1)
+start = time.time()
+diff = 0
+while diff < 5:
+    diff = time.time() - start
+    elapsed = '       ' + str(5-round(diff))
+    lcd.lcd_display_string(elapsed, 2)
+lcd.lcd_clear()
+lcd.lcd_display_string('Player 1:',1)
 
 while True: #cap.isOpened():
     if USE_THREAD:
