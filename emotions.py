@@ -19,10 +19,12 @@ import time
 import RPi.GPIO as GPIO
 from random import shuffle
 
-TUTORIAL = True
+TUTORIAL = False
 NUM_PLAYER = 2
 ROUND_TIME = 30 # seconds
 EMOTIONS = ["neutral", "happy", "sad", "surprise", "angry"]
+next_emotion = 10
+scores = []
 
 USE_PICAM = True # If false, loads video file source
 USE_THREAD = True
@@ -35,6 +37,9 @@ bounds = 30
 stepper = Stepper.Stepper(bounds)
 step = 1 # degree
 step_scale = (bounds * 2) / 100
+
+# hyper-parameters for bounding box shape
+emotion_offsets = (20, 40)
 
 # parameters for loading data and images
 emotion_model_path = './models/emotion_model.hdf5'
@@ -65,47 +70,42 @@ if USE_PICAM:
 else:
     cap = cv2.VideoCapture('./demo/dinner.mp4') # Video file source
 
-lcd.lcd_display_string_animated('   EMOTRONOM    ', 1, 0.2)
+lcd.lcd_display_string_animated_mid('EMOTRONOM', 1, 0.2)
 time.sleep(1)
 lcd.lcd_display_string_animated('Emotion Detector', 2, 0.1)
 time.sleep(3)
 lcd.lcd_clear()
 
 if TUTORIAL:
-    lcd.lcd_display_string_animated('    TUTORIAL    ', 1, 0.1)
+    # TODO: text verbinden, steppa raus
+    lcd.lcd_display_string_animated_mid('TUTORIAL', 1, 0.1)
     time.sleep(0.5)
-    lcd.lcd_clear()
-    lcd.lcd_display_string_long('There are five emotions.', 1, 0.28)
+    lcd.lcd_display_string_long('There are five emotions. Neutral, Happy, Angry, Sad and Surprise.', 2, 0.15)
     time.sleep(0.1)
-    lcd.lcd_display_string_long('Neutral, Happy, Angry, Sad and Surprise.', 2, 0.28)
+    lcd.lcd_display_string_long('Guess the emotion by facial expressions. Then to keep the amplitude high.', 2, 0.15)
     time.sleep(0.1)
-    lcd.lcd_display_string_long('Guess the emotion by facial expressions.', 1, 0.28)
+    lcd.lcd_display_string_long_2('Who perseveres the longest, is the KING.', 2, 0.15)
     time.sleep(0.1)
-    stepper.RIGHT_TURN(bounds/2)
-    stepper.LEFT_TURN(bounds/4)
-    stepper.RIGHT_TURN(bounds/4)
-    stepper.calibrate()
-    lcd.lcd_display_string_long('Then to keep the amplitude high.', 2, 0.28)
-    time.sleep(0.1)
-    lcd.lcd_display_string_long('Who perseveres the longest, is the KING.', 1, 0.28)
     lcd.lcd_clear()
     lcd.lcd_display_string_animated('    Have Fun    ', 2, 0.1)
     time.sleep(1)
     lcd.lcd_clear()
 
-lcd.lcd_display_string_animated('First Round', 1, 0.1)
-lcd.lcd_clear()
+lcd.lcd_display_string_animated_mid('First Round', 1, 0.1)
+time.sleep(3)
 
 for player in range(NUM_PLAYER):
 
     stepper.calibrate()
     stepper.LEFT_TURN(bounds)
-    mixed_emotions = shuffle(EMOTIONS)
-    searched_emotion = None
+    mixed_emotions = EMOTIONS.copy()
+    shuffle(mixed_emotions)
+    searched_emotion = mixed_emotions.pop()
 
-    lcd.lcd_display_string_animated('Countdown Pl {}'.format(player), 1, 0.1)
+    lcd.lcd_clear()
+    lcd.lcd_display_string_animated_mid('Player {}'.format(player), 1, 0.1)
     start_t, diff_t = time.time(), 0
-    while diff_t < 5:
+    while diff_t < 10:
         diff_t = time.time() - start_t
         elapsed_t = ' ' * 7 + str(5-round(diff_t))
         lcd.lcd_display_string(elapsed_t, 2)
@@ -113,13 +113,15 @@ for player in range(NUM_PLAYER):
 
     lcd.lcd_display_string('Player {}:'.format(player),1)
     start_t = last_t = time.time()
-    score_t = diff = 0
+    score_t = diff_t = 0
+    lcd.lcd_display_string(str(score_t),2)
 
-    while diff < ROUND_TIME:
+    while diff_t < ROUND_TIME:
 
-        if round(diff) % 10:
+        if round(diff_t) > next_emotion:
+            next_emotion += 10
             searched_emotion = mixed_emotions.pop()
-        print('Searched Emotion this round: ' + searched_emotion)
+            print('new searched Emotion: ' + searched_emotion)
 
         # get image from picamera
         if USE_THREAD:
@@ -142,6 +144,7 @@ for player in range(NUM_PLAYER):
 
         # predict emotions
         if major != None:
+            print('start face prediction...')
             face_coordinates = faces[major]
             x1, x2, y1, y2 = apply_offsets(face_coordinates, emotion_offsets)
             gray_face = gray_image[y1:y2, x1:x2]
@@ -157,28 +160,44 @@ for player in range(NUM_PLAYER):
             emotion_probability = np.max(emotion_prediction)
             emotion_label_arg = np.argmax(emotion_prediction)
             emotion_text = emotion_labels[emotion_label_arg]
-            print('emotion_labels: ' + emotion_labels)
-            print('emotion_label_arg: ' + emotion_label_arg)
             print('emotion_text: ' + emotion_text)
 
             if emotion_text == searched_emotion:
-                string = score + (time.time() - last_t)
-                lcd.lcd_display_string(round(string, 2), 2)
+                # TODO: need to reach specific probability, before time is added
+                score_t  = score_t + (time.time() - last_t)
+                lcd.lcd_display_string(str(round(score_t, 2)), 2)
                 step = step_scale * emotion_probability - stepper.getPos()
                 stepper.RIGHT_TURN(step)
             else:
-                lcd.lcd_display_string(str(round(score, 2)), 2)
+                lcd.lcd_display_string(str(round(score_t, 2)), 2)
                 step = step_scale * emotion_probability - stepper.getPos()
                 stepper.LEFT_TURN(step)
 
             if emotion_text == 'disgust' or emotion_text == 'fear':
                 print(emotion_text + ' detected, so more emotions present')
 
-            diff = time.time() - start
-            last_t = time.time()
+        diff_t = time.time() - start_t
+        last_t = time.time()
 
         if cv2.waitKey(1) & 0xFF == ord('q'):
             break
+
+    lcd.lcd_display_string_animated_mid('STOP!', 1, 0.05)
+    time.sleep(1)
+    scores.append(score_t)
+    next_emotion = 10
+    lcd.lcd_display_string_animated_mid('PL {} score is'.format(player), 1, 0.1)
+    time.sleep(5)
+
+lcd.lcd_clear()
+time.sleep(0.5)
+lcd.lcd_display_string_animated_mid('Game is done.', 1, 0.1)
+time.sleep(2)
+lcd.lcd_display_string_animated_mid('Winner is PL {}'.format(scores.index(max(scores))), 1, 0.1)
+lcd.lcd_display_string_animated_mid('with time {}'.format(round(max(scores),2)), 2, 0.1)
+time.sleep(10)
+lcd.lcd_clear()
+lcd.lcd_backlight('off')
 
 if USE_THREAD:
     vs.stop()

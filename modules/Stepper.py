@@ -80,5 +80,5 @@ class Stepper:
     def is_valid(self, deg):
         if self.getPos() + deg > self.bounds:
             print('ERROR[STEPER]: Step would be out of bounds!')
-           return False
+            return False
         return True

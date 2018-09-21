@@ -3,6 +3,7 @@
 
 from . import i2c_lib
 from time import *
+from math import floor
 
 # LCD Address
 ADDRESS = 0x3f
@@ -67,6 +68,7 @@ class lcd:
       self.lcd_write(LCD_DISPLAYCONTROL | LCD_DISPLAYON)
       self.lcd_write(LCD_CLEARDISPLAY)
       self.lcd_write(LCD_ENTRYMODESET | LCD_ENTRYLEFT)
+      self.signs = 16
       sleep(0.2)
 
    # clocks EN to latch command
@@ -115,37 +117,25 @@ class lcd:
          self.lcd_write(ord(char), Rs)
          sleep(delay)
 
-   # put string longer than 16 characters on one line
+   # put string in the mid of display
+   def lcd_display_string_animated_mid(self, string, line, delay):
+
+       string = ' ' * floor((16 - len(string)) / 2) + string
+       self.lcd_display_string_animated(string, line, delay)
+
+   # put string longer than 16 characters
    def lcd_display_string_long(self, string, line, delay):
-
-      ext_str = '                ' + string
-
-      for i in range(len(ext_str)):
-          if line == 1:
-             self.lcd_write(0x80)
-          if line == 2:
-             self.lcd_write(0xC0)
-          if i+16 < len(ext_str):
-              part_str = ext_str[i:i+16]
-          else:
-              part_str = ext_str[i:]
-          for char in part_str:
-             self.lcd_write(ord(char), Rs)
-          sleep(delay)
-          self.lcd_clear()
-
-   def lcd_display_string_long_2(self, string, line, delay):
 
       empty_str = ' ' * 16
       ext_str = empty_str + string
 
       for i in range(len(ext_str)):
-          if i+16 < len(ext_str):
-              part_str = ext_str[i:i+16]
-          else:
-              part_str = ext_str[i:]
-          #lcd_text = ext_str[-i:((len(string)-1)-i)]
-          #self.lcd_display_string(lcd_text, line)
+          #if i+16 < len(ext_str):
+          #    part_str = ext_str[i:i+16]
+          #else:
+          #    part_str = ext_str[i:]
+          lcd_text = ext_str[-i:((len(string)-1)-i)]
+          self.lcd_display_string(lcd_text, line)
           self.lcd_display_string(part_str, line)
           sleep(delay)
           self.lcd_display_string(empty_str, line)
