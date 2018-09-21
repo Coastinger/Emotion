@@ -1,3 +1,7 @@
+# Code Base by Technik Tests & Reviews YouTube Channel
+# https://www.youtube.com/watch?v=4fHL6BpJrC4
+# https://onedrive.live.com/?cid=971235166D23BBC6&id=971235166D23BBC6%21568&parId=971235166D23BBC6%21117&o=OneUp
+
 import time
 import RPi.GPIO as GPIO
 
@@ -27,36 +31,38 @@ class Stepper:
         time.sleep(0.001)
 
     def RIGHT_TURN(self, deg):
-        self.setPos(deg)
-        degree = full_circle/360*deg
-        self.GPIO_SETUP(0,0,0,0)
+        if self.is_valid(deg):
+            self.setPos(deg)
+            degree = full_circle/360*deg
+            self.GPIO_SETUP(0,0,0,0)
 
-        while degree > 0.0:
-            self.GPIO_SETUP(1,0,0,0)
-            self.GPIO_SETUP(1,1,0,0)
-            self.GPIO_SETUP(0,1,0,0)
-            self.GPIO_SETUP(0,1,1,0)
-            self.GPIO_SETUP(0,0,1,0)
-            self.GPIO_SETUP(0,0,1,1)
-            self.GPIO_SETUP(0,0,0,1)
-            self.GPIO_SETUP(1,0,0,1)
-            degree -= 1
+            while degree > 0.0:
+                self.GPIO_SETUP(1,0,0,0)
+                self.GPIO_SETUP(1,1,0,0)
+                self.GPIO_SETUP(0,1,0,0)
+                self.GPIO_SETUP(0,1,1,0)
+                self.GPIO_SETUP(0,0,1,0)
+                self.GPIO_SETUP(0,0,1,1)
+                self.GPIO_SETUP(0,0,0,1)
+                self.GPIO_SETUP(1,0,0,1)
+                degree -= 1
 
     def LEFT_TURN(self, deg):
-        self.setPos(-deg)
-        degree = full_circle/360*deg
-        self.GPIO_SETUP(0,0,0,0)
+        if self.is_valid(deg):
+            self.setPos(-deg)
+            degree = full_circle/360*deg
+            self.GPIO_SETUP(0,0,0,0)
 
-        while degree > 0.0:
-            self.GPIO_SETUP(1,0,0,1)
-            self.GPIO_SETUP(0,0,0,1)
-            self.GPIO_SETUP(0,0,1,1)
-            self.GPIO_SETUP(0,0,1,0)
-            self.GPIO_SETUP(0,1,1,0)
-            self.GPIO_SETUP(0,1,0,0)
-            self.GPIO_SETUP(1,1,0,0)
-            self.GPIO_SETUP(1,0,0,0)
-            degree -= 1
+            while degree > 0.0:
+                self.GPIO_SETUP(1,0,0,1)
+                self.GPIO_SETUP(0,0,0,1)
+                self.GPIO_SETUP(0,0,1,1)
+                self.GPIO_SETUP(0,0,1,0)
+                self.GPIO_SETUP(0,1,1,0)
+                self.GPIO_SETUP(0,1,0,0)
+                self.GPIO_SETUP(1,1,0,0)
+                self.GPIO_SETUP(1,0,0,0)
+                degree -= 1
 
     def setPos(self, deg):
         self.pos = deg
@@ -73,5 +79,6 @@ class Stepper:
 
     def is_valid(self, deg):
         if self.getPos() + deg > self.bounds:
+            print('ERROR[STEPER]: Step would be out of bounds!')
            return False
         return True

@@ -124,15 +124,31 @@ class lcd:
           if line == 1:
              self.lcd_write(0x80)
           if line == 2:
-             self.lcd_write(0xC0)     
-          if i+15 < len(ext_str):
-              str_part = ext_str[i:i+15]
+             self.lcd_write(0xC0)
+          if i+16 < len(ext_str):
+              part_str = ext_str[i:i+16]
           else:
-              str_part = ext_str[i:]  
-          for char in str_part:
+              part_str = ext_str[i:]
+          for char in part_str:
              self.lcd_write(ord(char), Rs)
           sleep(delay)
           self.lcd_clear()
+
+   def lcd_display_string_long_2(self, string, line, delay):
+
+      empty_str = ' ' * 16
+      ext_str = empty_str + string
+
+      for i in range(len(ext_str)):
+          if i+16 < len(ext_str):
+              part_str = ext_str[i:i+16]
+          else:
+              part_str = ext_str[i:]
+          #lcd_text = ext_str[-i:((len(string)-1)-i)]
+          #self.lcd_display_string(lcd_text, line)
+          self.lcd_display_string(part_str, line)
+          sleep(delay)
+          self.lcd_display_string(empty_str, line)
 
    # clear lcd and set to home
    def lcd_clear(self):

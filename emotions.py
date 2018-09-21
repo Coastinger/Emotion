@@ -17,8 +17,12 @@ import modules.lcddriver as lcddriver
 import modules.Stepper as Stepper
 import time
 import RPi.GPIO as GPIO
+from random import shuffle
 
-tutorial = True
+TUTORIAL = True
+NUM_PLAYER = 2
+ROUND_TIME = 30 # seconds
+EMOTIONS = ["neutral", "happy", "sad", "surprise", "angry"]
 
 USE_PICAM = True # If false, loads video file source
 USE_THREAD = True
@@ -29,15 +33,12 @@ lcd = lcddriver.lcd()
 # set up stepper
 bounds = 30
 stepper = Stepper.Stepper(bounds)
-step = 5 # degree
+step = 1 # degree
+step_scale = (bounds * 2) / 100
 
 # parameters for loading data and images
 emotion_model_path = './models/emotion_model.hdf5'
 emotion_labels = get_labels('fer2013')
-
-# hyper-parameters for bounding boxes shape
-frame_window = 10
-emotion_offsets = (20, 40)
 
 # loading models
 face_cascade = cv2.CascadeClassifier('./models/haarcascade_frontalface_default.xml')
@@ -45,13 +46,6 @@ emotion_classifier = load_model(emotion_model_path)
 
 # getting input model shapes for inference
 emotion_target_size = emotion_classifier.input_shape[1:3]
-
-# starting lists for calculating modes
-emotion_window = []
-
-# starting video streaming
-
-#cv2.namedWindow('window_frame')
 
 # Select video or webcam feed
 cap = None
@@ -77,7 +71,7 @@ lcd.lcd_display_string_animated('Emotion Detector', 2, 0.1)
 time.sleep(3)
 lcd.lcd_clear()
 
-if tutorial:
+if TUTORIAL:
     lcd.lcd_display_string_animated('    TUTORIAL    ', 1, 0.1)
     time.sleep(0.5)
     lcd.lcd_clear()
@@ -87,6 +81,10 @@ if tutorial:
     time.sleep(0.1)
     lcd.lcd_display_string_long('Guess the emotion by facial expressions.', 1, 0.28)
     time.sleep(0.1)
+    stepper.RIGHT_TURN(bounds/2)
+    stepper.LEFT_TURN(bounds/4)
+    stepper.RIGHT_TURN(bounds/4)
+    stepper.calibrate()
     lcd.lcd_display_string_long('Then to keep the amplitude high.', 2, 0.28)
     time.sleep(0.1)
     lcd.lcd_display_string_long('Who perseveres the longest, is the KING.', 1, 0.28)
@@ -97,93 +95,90 @@ if tutorial:
 
 lcd.lcd_display_string_animated('First Round', 1, 0.1)
 lcd.lcd_clear()
-lcd.lcd_display_string_animated('Countdown Pl 1', 1, 0.1)
-start = time.time()
-diff = 0
-while diff < 5:
-    diff = time.time() - start
-    elapsed = '       ' + str(5-round(diff))
-    lcd.lcd_display_string(elapsed, 2)
-lcd.lcd_clear()
-lcd.lcd_display_string('Player 1:',1)
 
-while True: #cap.isOpened():
-    if USE_THREAD:
-        bgr_image = vs.read()
-    else:
-        ret, bgr_image = cap.read()
+for player in range(NUM_PLAYER):
 
-    gray_image = cv2.cvtColor(bgr_image, cv2.COLOR_BGR2GRAY)
-    rgb_image = cv2.cvtColor(bgr_image, cv2.COLOR_BGR2RGB)
+    stepper.calibrate()
+    stepper.LEFT_TURN(bounds)
+    mixed_emotions = shuffle(EMOTIONS)
+    searched_emotion = None
 
-    faces = face_cascade.detectMultiScale(gray_image, scaleFactor=1.1, minNeighbors=5,
-			minSize=(30, 30), flags=cv2.CASCADE_SCALE_IMAGE)
+    lcd.lcd_display_string_animated('Countdown Pl {}'.format(player), 1, 0.1)
+    start_t, diff_t = time.time(), 0
+    while diff_t < 5:
+        diff_t = time.time() - start_t
+        elapsed_t = ' ' * 7 + str(5-round(diff_t))
+        lcd.lcd_display_string(elapsed_t, 2)
+    lcd.lcd_clear()
 
-    # select dominating face
-    curr, major = 0, None
-    for i, (x, y, w, h) in enumerate(faces):
-        if w * h > curr:
-            curr = w * h
-            major = i
+    lcd.lcd_display_string('Player {}:'.format(player),1)
+    start_t = last_t = time.time()
+    score_t = diff = 0
 
-    #for face_coordinates in faces:
-    if major != None:
-        face_coordinates = faces[major]
-        x1, x2, y1, y2 = apply_offsets(face_coordinates, emotion_offsets)
-        gray_face = gray_image[y1:y2, x1:x2]
-        try:
-            gray_face = cv2.resize(gray_face, (emotion_target_size))
-        except:
-            continue
+    while diff < ROUND_TIME:
 
-        gray_face = preprocess_input(gray_face, True)
-        gray_face = np.expand_dims(gray_face, 0)
-        gray_face = np.expand_dims(gray_face, -1)
-        emotion_prediction = emotion_classifier.predict(gray_face)
-        emotion_probability = np.max(emotion_prediction)
-        emotion_label_arg = np.argmax(emotion_prediction)
-        emotion_text = emotion_labels[emotion_label_arg]
-        emotion_window.append(emotion_text)
+        if round(diff) % 10:
+            searched_emotion = mixed_emotions.pop()
+        print('Searched Emotion this round: ' + searched_emotion)
 
-        if len(emotion_window) > frame_window:
-            emotion_window.pop(0)
-        try:
-            emotion_mode = mode(emotion_window)
-        except:
-            continue
-
-        if emotion_text == 'angry':
-            angry_str = 'Angry:  ' + str(round(emotion_probability,2))
-            lcd.lcd_display_string(angry_str , 1)
-            stepper.RIGHT_TURN(step)
-            #color = emotion_probability * np.asarray((255, 0, 0))
-        elif emotion_text == 'sad':
-            sad_str = 'Sad:  ' + str(round(emotion_probability,2))
-            lcd.lcd_display_string(sad_str , 2)
-            stepper.LEFT_TURN(step)
-            #color = emotion_probability * np.asarray((0, 0, 255))
-        elif emotion_text == 'happy':
-            stepper.LEFT_TURN(0)
-            #color = emotion_probability * np.asarray((255, 255, 0))
-        elif emotion_text == 'surprise':
-            stepper.RIGHT_TURN(0)
-            #color = emotion_probability * np.asarray((0, 255, 255))
+        # get image from picamera
+        if USE_THREAD:
+            bgr_image = vs.read()
         else:
-            lcd.lcd_display_string('--- Neutral ---', 2)
-            #color = emotion_probability * np.asarray((0, 255, 0))
+            ret, bgr_image = cap.read()
+        gray_image = cv2.cvtColor(bgr_image, cv2.COLOR_BGR2GRAY)
+        rgb_image = cv2.cvtColor(bgr_image, cv2.COLOR_BGR2RGB)
 
-        #color = color.astype(int)
-        #color = color.tolist()
+        # detect faces
+        faces = face_cascade.detectMultiScale(gray_image, scaleFactor=1.1, minNeighbors=5,
+    			minSize=(30, 30), flags=cv2.CASCADE_SCALE_IMAGE)
 
-        #draw_bounding_box(face_coordinates, rgb_image, color)
-        #draw_text(face_coordinates, rgb_image, emotion_mode,
-                  #color, 0, -45, 1, 1)
+        # select dominating face
+        curr, major = 0, None
+        for i, (x, y, w, h) in enumerate(faces):
+            if w * h > curr:
+                curr = w * h
+                major = i
 
-    #bgr_image = cv2.cvtColor(rgb_image, cv2.COLOR_RGB2BGR)
-    #cv2.imshow('window_frame', bgr_image)
+        # predict emotions
+        if major != None:
+            face_coordinates = faces[major]
+            x1, x2, y1, y2 = apply_offsets(face_coordinates, emotion_offsets)
+            gray_face = gray_image[y1:y2, x1:x2]
+            try:
+                gray_face = cv2.resize(gray_face, (emotion_target_size))
+            except:
+                continue
 
-    if cv2.waitKey(1) & 0xFF == ord('q'):
-        break
+            gray_face = preprocess_input(gray_face, True)
+            gray_face = np.expand_dims(gray_face, 0)
+            gray_face = np.expand_dims(gray_face, -1)
+            emotion_prediction = emotion_classifier.predict(gray_face)
+            emotion_probability = np.max(emotion_prediction)
+            emotion_label_arg = np.argmax(emotion_prediction)
+            emotion_text = emotion_labels[emotion_label_arg]
+            print('emotion_labels: ' + emotion_labels)
+            print('emotion_label_arg: ' + emotion_label_arg)
+            print('emotion_text: ' + emotion_text)
+
+            if emotion_text == searched_emotion:
+                string = score + (time.time() - last_t)
+                lcd.lcd_display_string(round(string, 2), 2)
+                step = step_scale * emotion_probability - stepper.getPos()
+                stepper.RIGHT_TURN(step)
+            else:
+                lcd.lcd_display_string(str(round(score, 2)), 2)
+                step = step_scale * emotion_probability - stepper.getPos()
+                stepper.LEFT_TURN(step)
+
+            if emotion_text == 'disgust' or emotion_text == 'fear':
+                print(emotion_text + ' detected, so more emotions present')
+
+            diff = time.time() - start
+            last_t = time.time()
+
+        if cv2.waitKey(1) & 0xFF == ord('q'):
+            break
 
 if USE_THREAD:
     vs.stop()
