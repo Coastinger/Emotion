@@ -1,3 +1,6 @@
+from time import time, sleep
+uptime = time.time()
+
 import cv2
 import numpy as np
 from keras.models import load_model
@@ -11,11 +14,10 @@ from utils.inference import load_detection_model
 from utils.preprocessor import preprocess_input
 from picamera import PiCamera
 from picamera.array import PiRGBArray
-#from imutils.video.pivideostream import PiVideoStream
 import modules.PiVideoStream as PiVideoStream
 import modules.lcddriver as lcddriver
 import modules.Stepper as Stepper
-import time
+import modules.PiButton as PiButton
 import RPi.GPIO as GPIO
 from random import shuffle
 
@@ -32,10 +34,12 @@ USE_THREAD = True
 # initialize displayed
 lcd = lcddriver.lcd()
 
+# start button thread
+button = PiButton.Button()
+
 # set up stepper
 bounds = 30
 stepper = Stepper.Stepper(bounds)
-step = 1 # degree
 step_scale = (bounds * 2) / 100
 
 # hyper-parameters for bounding box shape
@@ -70,14 +74,23 @@ if USE_PICAM:
 else:
     cap = cv2.VideoCapture('./demo/dinner.mp4') # Video file source
 
+print('Setup finished in: {}'.format(round(time.time() - uptime), 2))
+
+# Intro
 lcd.lcd_display_string_animated_mid('EMOTRONOM', 1, 0.2)
 time.sleep(1)
 lcd.lcd_display_string_animated('Emotion Detector', 2, 0.1)
 time.sleep(3)
 lcd.lcd_clear()
 
-if TUTORIAL:
-    # TODO: text verbinden, steppa raus
+# Skip Tutorial
+button.clearCount()
+lcd.lcd_display_string_animated_mid('Press Button', 1, 0.1)
+lcd.lcd_display_string_animated_mid('to skip tutorial', 2, 0.1)
+time.sleep(5)
+
+# Tutorial
+if button.count != 0:
     lcd.lcd_display_string_animated_mid('TUTORIAL', 1, 0.1)
     time.sleep(0.5)
     lcd.lcd_display_string_long('There are five emotions. Neutral, Happy, Angry, Sad and Surprise.', 2, 0.15)
@@ -91,7 +104,8 @@ if TUTORIAL:
     time.sleep(1)
     lcd.lcd_clear()
 
-lcd.lcd_display_string_animated_mid('First Round', 1, 0.1)
+# Start Game
+lcd.lcd_display_string_animated_mid('First Game', 1, 0.1)
 time.sleep(3)
 
 for player in range(NUM_PLAYER):
@@ -102,12 +116,13 @@ for player in range(NUM_PLAYER):
     shuffle(mixed_emotions)
     searched_emotion = mixed_emotions.pop()
 
+    # Countdown
     lcd.lcd_clear()
     lcd.lcd_display_string_animated_mid('Player {}'.format(player), 1, 0.1)
     start_t, diff_t = time.time(), 0
     while diff_t < 10:
         diff_t = time.time() - start_t
-        elapsed_t = ' ' * 7 + str(5-round(diff_t))
+        elapsed_t = ' ' * 7 + str(10-round(diff_t))
         lcd.lcd_display_string(elapsed_t, 2)
     lcd.lcd_clear()
 
@@ -115,6 +130,9 @@ for player in range(NUM_PLAYER):
     start_t = last_t = time.time()
     score_t = diff_t = 0
     lcd.lcd_display_string(str(score_t),2)
+
+    # performance
+    loopCount = 0
 
     while diff_t < ROUND_TIME:
 
@@ -179,9 +197,15 @@ for player in range(NUM_PLAYER):
         diff_t = time.time() - start_t
         last_t = time.time()
 
-        if cv2.waitKey(1) & 0xFF == ord('q'):
+        loopCount += 1
+
+        if button.pressed():
+            print('[FLAG] Button pressed!')
             break
 
+    print('Prediction Loops per second: {}'.format(loopCount / ROUND_TIME))
+
+    # displaying player score
     lcd.lcd_display_string_animated_mid('STOP!', 1, 0.05)
     time.sleep(1)
     scores.append(score_t)
@@ -189,6 +213,9 @@ for player in range(NUM_PLAYER):
     lcd.lcd_display_string_animated_mid('PL {} score is'.format(player), 1, 0.1)
     time.sleep(5)
 
+print('Game finished in: {}'.format(round(time.time() - uptime), 2))
+
+# displaying results
 lcd.lcd_clear()
 time.sleep(0.5)
 lcd.lcd_display_string_animated_mid('Game is done.', 1, 0.1)
@@ -196,14 +223,14 @@ time.sleep(2)
 lcd.lcd_display_string_animated_mid('Winner is PL {}'.format(scores.index(max(scores))), 1, 0.1)
 lcd.lcd_display_string_animated_mid('with time {}'.format(round(max(scores),2)), 2, 0.1)
 time.sleep(10)
+
+# cleanup
 lcd.lcd_clear()
 lcd.lcd_backlight('off')
-
 if USE_THREAD:
     vs.stop()
 else:
     cap.release()
     rawCapture.close()
     camera.close()
-
 cv2.destroyAllWindows()
