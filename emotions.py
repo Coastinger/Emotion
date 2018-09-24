@@ -35,7 +35,7 @@ USE_THREAD = True
 lcd = lcddriver.lcd()
 
 # start button thread
-button = PiButton.Button()
+button = PiButton.Button(37)
 
 # set up stepper
 bounds = 30
@@ -86,8 +86,9 @@ lcd.lcd_clear()
 # Skip Tutorial
 button.clearCount()
 lcd.lcd_display_string_animated_mid('Press Button', 1, 0.1)
-lcd.lcd_display_string_animated_mid('to skip tutorial', 2, 0.1)
+lcd.lcd_display_string_animated_mid('for tutorial', 2, 0.1)
 time.sleep(5)
+lcd.lcd_clear()
 
 # Tutorial
 if button.count != 0:
@@ -103,6 +104,8 @@ if button.count != 0:
     lcd.lcd_display_string_animated('    Have Fun    ', 2, 0.1)
     time.sleep(1)
     lcd.lcd_clear()
+
+button.clearCount()
 
 # Start Game
 lcd.lcd_display_string_animated_mid('First Game', 1, 0.1)
@@ -162,7 +165,7 @@ for player in range(NUM_PLAYER):
 
         # predict emotions
         if major != None:
-            print('start face prediction...')
+            #print('start face prediction...')
             face_coordinates = faces[major]
             x1, x2, y1, y2 = apply_offsets(face_coordinates, emotion_offsets)
             gray_face = gray_image[y1:y2, x1:x2]
@@ -178,7 +181,7 @@ for player in range(NUM_PLAYER):
             emotion_probability = np.max(emotion_prediction)
             emotion_label_arg = np.argmax(emotion_prediction)
             emotion_text = emotion_labels[emotion_label_arg]
-            print('emotion_text: ' + emotion_text)
+            #print('emotion_text: ' + emotion_text)
 
             if emotion_text == searched_emotion:
                 # TODO: need to reach specific probability, before time is added
@@ -199,8 +202,9 @@ for player in range(NUM_PLAYER):
 
         loopCount += 1
 
-        if button.pressed():
-            print('[FLAG] Button pressed!')
+        if button.count != 0:
+            button.clearCount()
+            print('[INFO] Break by Button!')
             break
 
     print('Prediction Loops per second: {}'.format(loopCount / ROUND_TIME))
@@ -218,7 +222,7 @@ print('Game finished in: {}'.format(round(time.time() - uptime), 2))
 # displaying results
 lcd.lcd_clear()
 time.sleep(0.5)
-lcd.lcd_display_string_animated_mid('Game is done.', 1, 0.1)
+lcd.lcd_display_string_animated_mid('Game done!', 1, 0.1)
 time.sleep(2)
 lcd.lcd_display_string_animated_mid('Winner is PL {}'.format(scores.index(max(scores))), 1, 0.1)
 lcd.lcd_display_string_animated_mid('with time {}'.format(round(max(scores),2)), 2, 0.1)
@@ -227,6 +231,7 @@ time.sleep(10)
 # cleanup
 lcd.lcd_clear()
 lcd.lcd_backlight('off')
+button.stop()
 if USE_THREAD:
     vs.stop()
 else:

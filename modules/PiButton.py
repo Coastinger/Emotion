@@ -1,38 +1,31 @@
-# https://raspberrypi.stackexchange.com/questions/42807/threading-with-gpio-and-buttons
-
-from threading import Thread
+import threading
 import RPi.GPIO as GPIO
+import time
 
 GPIO.setmode(GPIO.BOARD)
 GPIO.setwarnings(False)
 
-class Button:
+class Button(threading.Thread):
     def __init__(self, channel):
         threading.Thread.__init__(self)
-        self._pressed = False
         self.channel = channel
         self.count = 0
-        GPIO.setup(self.channel, GPIO.IN)
+        self.running = True
+        GPIO.setup(self.channel, GPIO.IN, pull_up_down=GPIO.PUD_UP )
         self.deamon = True
         self.start()
 
     def run(self):
-        previous = None
-        while 1:
-            current = GPIO.input(self.channel)
-            time.sleep(0.01)
-
-            if current is False and previous is True:
-                self._pressed = True
-                if self.count > 10:
-                    self.count = 0
-                else:
+        while self.running:
+            if GPIO.input(self.channel) == GPIO.LOW:
+                if self.count < 100:
                     self.count += 1
-
-                while self._pressed:
-                    time.sleep(0.05)
-
-            previous = current
+                else:
+                    self.count = 0
+            time.sleep(0.1)
 
     def clearCount(self):
         self.count = 0
+
+    def stop(self):
+        self.running = False
