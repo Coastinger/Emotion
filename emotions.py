@@ -205,7 +205,7 @@ for player in range(NUM_PLAYER):
             if wanted_emotion_prob > level:
                 score_t = score_t + (time.time() - last_t)
             lcd.lcd_display_string(str(round(score_t, 2)), 2)
-            step = step_scale * (100 * round(emotion_probability,2)) - bounds - stepper.getPos()
+            step = step_scale * (100 * round(wanted_emotion_prob,2)) - bounds - stepper.getPos()
             print('[INFO] StepperPos: ' + str(stepper.getPos()) + ' new step: ' + str(step))
             if wanted_emotion_prob > lastProb:
                 stepper.RIGHT_TURN(step)
