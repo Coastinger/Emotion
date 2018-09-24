@@ -23,8 +23,8 @@ from random import shuffle
 
 NUM_PLAYER = 1
 ROUND_TIME = 30
-EMOTIONS = ["happy", "surprise", "neutral", "angry", "disgust", "sad", "fear"] # order by probability
-EASY_EMOTIONS = ["neutral", "happy", "surprise", "angry"]
+#EMOTIONS = ["happy", "surprise", "neutral", "angry", "disgust", "sad", "fear"] # order by probability
+#EASY_EMOTIONS = ["neutral", "happy", "surprise", "angry"]
 next_emotion_t = 10 # time until next random emotion in game
 scores = []
 level = 0.5 # emotion prob. needs to be higher to score
@@ -39,7 +39,7 @@ lcd = lcddriver.lcd()
 button = PiButton.Button(37)
 
 # set up stepper
-bounds = 30
+bounds = 35
 stepper = Stepper.Stepper(bounds)
 step_scale = (bounds * 2) / 100
 
@@ -49,6 +49,9 @@ emotion_offsets = (20, 40)
 # parameters for loading data and images
 emotion_model_path = './models/emotion_model.hdf5'
 emotion_labels = get_labels('fer2013')
+emotion_numbers = dict()
+for i in range(len(emotion_labels)):
+    emotion_numbers.setdefault(emotion_labels.get(i), i)
 
 # loading models
 face_cascade = cv2.CascadeClassifier('./models/haarcascade_frontalface_default.xml')
@@ -112,22 +115,25 @@ lcd.lcd_display_string_animated_mid('Number of Player', 1, 0.1)
 start_t, diff_t = time.time(), 0
 while diff_t < 9:
     diff_t = time.time() - start_t
-    lcd.lcd_display_string(button.count + 1, 2)
+    lcd.lcd_display_string(str(button.count + 1), 2)
+NUM_PLAYER = button.count + 1
 lcd.lcd_clear()
 button.clearCount()
 
 # Guess Game
 lcd.lcd_display_string_animated_mid('Guess Game', 1, 0.1)
-lcd.lcd_clear()
 time.sleep(3)
+lcd.lcd_clear()
 
 for player in range(NUM_PLAYER):
 
     stepper.calibrate()
     stepper.LEFT_TURN(bounds)
-    mixed_emotions = EMOTIONS.copy()
+    mixed_emotions = emotion_labels.copy()
     shuffle(mixed_emotions)
-    wanted_emotion = mixed_emotions.pop()
+    wanted_emotion = mixed_emotions.popitem()
+    print('first wanted emotion: ' + str(wanted_emotion))
+    lastProb = 0
 
     # Countdown
     lcd.lcd_clear()
@@ -153,8 +159,8 @@ for player in range(NUM_PLAYER):
 
         if round(diff_t) > next_emotion_t:
             next_emotion_t += 10
-            wanted_emotion = mixed_emotions.pop()
-            print('new searched Emotion: ' + wanted_emotion)
+            wanted_emotion = mixed_emotions.popitem()
+            print('next wanted emotion: ' + str(wanted_emotion))
 
         # get image from picamera
         if USE_CAM and USE_THREAD:
@@ -192,26 +198,47 @@ for player in range(NUM_PLAYER):
             emotion_probability = np.max(emotion_prediction)
             emotion_label_arg = np.argmax(emotion_prediction)
             emotion_text = emotion_labels[emotion_label_arg]
-            #print('emotion_text: ' + emotion_text)
-            #print('emotion probability: ' + str(emotion_probability))
+            wanted_emotion_prob = emotion_prediction[0, wanted_emotion[0]]
+            #print('[INFO] predicted emotion: ' + emotion_text)
+            print('[INFO] wanted probability: ' + str(wanted_emotion_prob))
 
-            if emotion_text == wanted_emotion:
+            if wanted_emotion_prob > level:
+                score_t = score_t + (time.time() - last_t)
+            lcd.lcd_display_string(str(round(score_t, 2)), 2)
+            step = step_scale * (100 * round(emotion_probability,2)) - bounds - stepper.getPos()
+            print('[INFO] StepperPos: ' + str(stepper.getPos()) + ' new step: ' + str(step))
+            if wanted_emotion_prob > lastProb:
+                stepper.RIGHT_TURN(step)
+            else:
+                stepper.LEFT_TURN(step)
+
+            if False: #emotion_text == wanted_emotion[1]:
                 if emotion_probability > level:
                     score_t  = score_t + (time.time() - last_t)
                 lcd.lcd_display_string(str(round(score_t, 2)), 2)
-                step = step_scale * (100 * emotion_probability) - bounds - stepper.getPos()
-                print('step right: ' + str(step))
-                stepper.RIGHT_TURN(step)
-            else:
+                print('wanted prob: ' + str(emotion_probability))
+                step = step_scale * (100 * round(emotion_probability,2)) - bounds - stepper.getPos()
+                print('step Right: ' + str(step))
+                print(str(stepper.getPos()))
+                if emotion_probability > lastProb:
+                    stepper.RIGHT_TURN(step)
+                else:
+                    stepper.LEFT_TURN(step)
+            if False:
+                #wanted_emotion_prob = emotion_prediction[0, wanted_emotion[0]] # hier perf besser, aber was mit lastProb
                 lcd.lcd_display_string(str(round(score_t, 2)), 2)
-                step = step_scale * (100 * emotion_probability) - bounds - stepper.getPos()
-                print('step left: ' + str(step))
+                print('wanted prob: ' + str(wanted_emotion_prob))
+                step = step_scale * (100 * round(wanted_emotion_prob,2)) - bounds - stepper.getPos()
+                print('step Left: ' + str(step))
+                print(str(stepper.getPos()))
                 stepper.LEFT_TURN(step)
 
+            lastProb = wanted_emotion_prob
             predictCount += 1
 
         if predictCount > lastPredCount:
-            print('[LOG] Full Pipeline Time ' + (time.time() - last_t))
+            print('[LOG] Full Pipeline Time ' + str(round((time.time() - last_t))))
+            lastPredCount += 1
 
         diff_t = time.time() - start_t
         last_t = time.time()

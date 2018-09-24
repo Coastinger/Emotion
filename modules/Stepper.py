@@ -78,7 +78,8 @@ class Stepper:
            self.RIGHT_TURN(abs(self.pos))
 
     def is_valid(self, deg):
-        if self.getPos() + deg > self.bounds:
+        new_pos = self.pos + deg
+        if new_pos < -self.bounds or new_pos > self.bounds:
             print('ERROR[STEPER]: Step would be out of bounds!')
             return False
         return True
