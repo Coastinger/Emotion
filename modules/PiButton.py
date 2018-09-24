@@ -18,11 +18,11 @@ class Button(threading.Thread):
     def run(self):
         while self.running:
             if GPIO.input(self.channel) == GPIO.LOW:
-                if self.count < 100:
+                if self.count < 10:
                     self.count += 1
                 else:
                     self.count = 0
-            time.sleep(0.1)
+            time.sleep(1)
 
     def clearCount(self):
         self.count = 0
