@@ -11,7 +11,7 @@ class Button:
         threading.Thread.__init__(self)
         self._pressed = False
         self.channel = channel
-		self.count = 0
+        self.count = 0
         GPIO.setup(self.channel, GPIO.IN)
         self.deamon = True
         self.start()
@@ -24,7 +24,10 @@ class Button:
 
             if current is False and previous is True:
                 self._pressed = True
-				0 if self.count > 10 else self.count += 1
+                if self.count > 10:
+                    self.count = 0
+                else:
+                    self.count += 1
 
                 while self._pressed:
                     time.sleep(0.05)
@@ -32,4 +35,4 @@ class Button:
             previous = current
 
     def clearCount(self):
-		self.count = 0
+        self.count = 0

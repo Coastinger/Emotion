@@ -1,4 +1,4 @@
-from time import time, sleep
+import time
 uptime = time.time()
 
 import cv2

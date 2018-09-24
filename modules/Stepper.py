@@ -48,7 +48,7 @@ class Stepper:
                 degree -= 1
 
     def LEFT_TURN(self, deg):
-        if self.is_valid(deg):
+        if self.is_valid(-deg):
             self.setPos(-deg)
             degree = full_circle/360*deg
             self.GPIO_SETUP(0,0,0,0)
@@ -65,7 +65,7 @@ class Stepper:
                 degree -= 1
 
     def setPos(self, deg):
-        self.pos = deg
+        self.pos += deg
 
     def getPos(self):
         return self.pos
