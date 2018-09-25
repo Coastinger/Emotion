@@ -130,12 +130,12 @@ class lcd:
       ext_str = empty_str + string
 
       for i in range(len(ext_str)):
-          #if i+16 < len(ext_str):
-          #    part_str = ext_str[i:i+16]
-          #else:
-          #    part_str = ext_str[i:]
-          lcd_text = ext_str[-i:((len(string)-1)-i)]
-          self.lcd_display_string(lcd_text, line)
+          if i+16 < len(ext_str):
+              part_str = ext_str[i:i+16]
+          else:
+              part_str = ext_str[i:]
+          #lcd_text = ext_str[-i:((len(string)-1)-i)]
+          #self.lcd_display_string(lcd_text, line)
           self.lcd_display_string(part_str, line)
           sleep(delay)
           self.lcd_display_string(empty_str, line)

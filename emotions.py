@@ -1,5 +1,6 @@
 import time
 uptime = time.time()
+print('[LOG] Start Setup...')
 
 import cv2
 import numpy as np
@@ -23,17 +24,15 @@ from random import shuffle
 
 NUM_PLAYER = 1
 ROUND_TIME = 30
-#EMOTIONS = ["happy", "surprise", "neutral", "angry", "disgust", "sad", "fear"] # order by probability
-#EASY_EMOTIONS = ["neutral", "happy", "surprise", "angry"]
+#EMOTIONS = {3:"happy", 5:"surprise", 6:"neutral", 0:"angry", 1:"disgust", 4:"sad", 2:"fear"} # order by probability, without order take emotion_labels
+EASY_EMOTIONS = {6:'neutral', 3:"happy", 5:"surprise", 0:"angry"}
 next_emotion_t = 10 # time until next random emotion in game
 scores = []
-level = 0.5 # emotion prob. needs to be higher to score
+level = 0.51 # emotion prob. needs to be higher to score
+EASY_MODE = True
 
 USE_CAM = True # If false, loads video file source
 USE_THREAD = True
-
-# initialize displayed
-lcd = lcddriver.lcd()
 
 # start button thread
 button = PiButton.Button(37)
@@ -49,9 +48,6 @@ emotion_offsets = (20, 40)
 # parameters for loading data and images
 emotion_model_path = './models/emotion_model.hdf5'
 emotion_labels = get_labels('fer2013')
-emotion_numbers = dict()
-for i in range(len(emotion_labels)):
-    emotion_numbers.setdefault(emotion_labels.get(i), i)
 
 # loading models
 face_cascade = cv2.CascadeClassifier('./models/haarcascade_frontalface_default.xml')
@@ -77,6 +73,9 @@ if USE_CAM:
 else:
     cap = cv2.VideoCapture('./demo/dinner.mp4')
 
+# init lcd display
+lcd = lcddriver.lcd()
+
 print('[LOG] Setup finished in: {}'.format(round(time.time() - uptime), 2))
 
 # Intro
@@ -89,22 +88,22 @@ lcd.lcd_clear()
 # Skip Tutorial
 button.clearCount()
 lcd.lcd_display_string_animated_mid('Press Button', 1, 0.1)
-lcd.lcd_display_string_animated_mid('for tutorial', 2, 0.1)
+lcd.lcd_display_string_animated_mid('for Tutorial', 2, 0.1)
 time.sleep(5)
 lcd.lcd_clear()
 
 # Tutorial
 if button.count != 0:
     lcd.lcd_display_string_animated_mid('TUTORIAL', 1, 0.1)
+    time.sleep(1)
+    lcd.lcd_display_string_long('There are seven emotions. Neutral, Happy, Angry, Sad, Disgust, Fear and Surprise.', 2, 0.1)
     time.sleep(0.5)
-    lcd.lcd_display_string_long('There are seven emotions. Neutral, Happy, Angry, Sad, Disgust, Fear and Surprise.', 2, 0.15)
-    time.sleep(0.1)
-    lcd.lcd_display_string_long('Guess the emotion by facial expressions. Then to keep the amplitude high.', 2, 0.15)
-    time.sleep(0.1)
-    lcd.lcd_display_string_long_2('Who perseveres the longest, is the KING.', 2, 0.15)
-    time.sleep(0.1)
+    lcd.lcd_display_string_long('Guess the emotion by facial expressions. Then to keep the amplitude high.', 2, 0.1)
+    time.sleep(0.5)
+    lcd.lcd_display_string_long('Who perseveres the longest, is the KING.', 2, 0.1)
+    time.sleep(0.5)
     lcd.lcd_clear()
-    lcd.lcd_display_string_animated('    Have Fun    ', 2, 0.1)
+    lcd.lcd_display_string_animated_mid('    Have Fun    ', 2, 0.1)
     time.sleep(1)
     lcd.lcd_clear()
 button.clearCount()
@@ -127,12 +126,22 @@ lcd.lcd_clear()
 
 for player in range(NUM_PLAYER):
 
+    # Player Setup
     stepper.calibrate()
     stepper.LEFT_TURN(bounds)
-    mixed_emotions = emotion_labels.copy()
-    shuffle(mixed_emotions)
+    if EASY_MODE:
+        copy_emotions = EASY_EMOTIONS.copy()
+        keys = list(copy_emotions.keys())
+        shuffle(keys)
+        list = [(key, copy_emotions[key]) for key in keys]
+        mixed_emotions = dict()
+        [mixed_emotions.setdefault(key,value) for key,value in list]
+    else:
+        mixed_emotions = emotion_labels.copy()
+        shuffle(mixed_emotions) # works cause no holes in iteratable keys
+    #print('[INFO] Mixed Emotions: ' + str(mixed_emotions))
     wanted_emotion = mixed_emotions.popitem()
-    print('first wanted emotion: ' + str(wanted_emotion))
+    print('[INFO] First wanted emotion: ' + str(wanted_emotion))
     lastProb = 0
 
     # Countdown
@@ -160,7 +169,7 @@ for player in range(NUM_PLAYER):
         if round(diff_t) > next_emotion_t:
             next_emotion_t += 10
             wanted_emotion = mixed_emotions.popitem()
-            print('next wanted emotion: ' + str(wanted_emotion))
+            print('[INFO] Next wanted emotion: ' + str(wanted_emotion))
 
         # get image from picamera
         if USE_CAM and USE_THREAD:
@@ -200,44 +209,23 @@ for player in range(NUM_PLAYER):
             emotion_text = emotion_labels[emotion_label_arg]
             wanted_emotion_prob = emotion_prediction[0, wanted_emotion[0]]
             #print('[INFO] predicted emotion: ' + emotion_text)
-            print('[INFO] wanted probability: ' + str(wanted_emotion_prob))
+            #print('[INFO] wanted probability: ' + str(wanted_emotion_prob))
 
             if wanted_emotion_prob > level:
                 score_t = score_t + (time.time() - last_t)
             lcd.lcd_display_string(str(round(score_t, 2)), 2)
-            step = step_scale * (100 * round(wanted_emotion_prob,2)) - bounds - stepper.getPos()
-            print('[INFO] StepperPos: ' + str(stepper.getPos()) + ' new step: ' + str(step))
+            step = round(step_scale * (100 * wanted_emotion_prob) - bounds - stepper.getPos(), 1)
+            #print('[INFO] StepperPos: ' + str(stepper.getPos()) + ' new step: ' + str(step) + ' lastProb ' + str(lastProb))
             if wanted_emotion_prob > lastProb:
                 stepper.RIGHT_TURN(step)
             else:
-                stepper.LEFT_TURN(step)
-
-            if False: #emotion_text == wanted_emotion[1]:
-                if emotion_probability > level:
-                    score_t  = score_t + (time.time() - last_t)
-                lcd.lcd_display_string(str(round(score_t, 2)), 2)
-                print('wanted prob: ' + str(emotion_probability))
-                step = step_scale * (100 * round(emotion_probability,2)) - bounds - stepper.getPos()
-                print('step Right: ' + str(step))
-                print(str(stepper.getPos()))
-                if emotion_probability > lastProb:
-                    stepper.RIGHT_TURN(step)
-                else:
-                    stepper.LEFT_TURN(step)
-            if False:
-                #wanted_emotion_prob = emotion_prediction[0, wanted_emotion[0]] # hier perf besser, aber was mit lastProb
-                lcd.lcd_display_string(str(round(score_t, 2)), 2)
-                print('wanted prob: ' + str(wanted_emotion_prob))
-                step = step_scale * (100 * round(wanted_emotion_prob,2)) - bounds - stepper.getPos()
-                print('step Left: ' + str(step))
-                print(str(stepper.getPos()))
-                stepper.LEFT_TURN(step)
+                stepper.LEFT_TURN(abs(step))
 
             lastProb = wanted_emotion_prob
             predictCount += 1
 
         if predictCount > lastPredCount:
-            print('[LOG] Full Pipeline Time ' + str(round((time.time() - last_t))))
+            print('[LOG] Full Pipeline Time ' + str(time.time() - last_t))
             lastPredCount += 1
 
         diff_t = time.time() - start_t
@@ -250,8 +238,8 @@ for player in range(NUM_PLAYER):
             print('[INFO] Break by Button!')
             break
 
-    print('[LOG] Loops per second: {}'.format(loopCount / ROUND_TIME))
-    print('[LOG] Prediction count: {}'.format(predictCount))
+    #print('[LOG] Loops per second: {}'.format(loopCount / ROUND_TIME))
+    #print('[LOG] Prediction count: {}'.format(predictCount))
 
     # displaying player score
     lcd.lcd_display_string_animated_mid('STOP!', 1, 0.05)
@@ -261,16 +249,20 @@ for player in range(NUM_PLAYER):
     lcd.lcd_display_string_animated_mid('PL {} score is'.format(player), 1, 0.1)
     time.sleep(5)
 
-print('[LOG] Game finished in: {}'.format(round(time.time() - uptime), 2))
+#print('[LOG] Game finished in: {}'.format(round(time.time() - uptime), 2))
 
 # displaying results
 lcd.lcd_clear()
 time.sleep(0.5)
 lcd.lcd_display_string_animated_mid('Game done!', 1, 0.1)
+stepper.calibrate()
 time.sleep(2)
 lcd.lcd_display_string_animated_mid('Winner is PL {}'.format(scores.index(max(scores))), 1, 0.1)
 lcd.lcd_display_string_animated_mid('with time {}'.format(round(max(scores),2)), 2, 0.1)
 time.sleep(10)
+
+# TODO
+# again?
 
 # cleanup
 lcd.lcd_clear()
