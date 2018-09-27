@@ -46,12 +46,13 @@ step_scale = (bounds * 2) / 100
 emotion_offsets = (20, 40)
 
 # parameters for loading data and images
-emotion_model_path = './models/emotion_model.hdf5'
+emotion_model_path = './models/mini_XCEPTION_KDEF.hdf5' #fer2013_mini_XCEPTION.119-0.65.hdf5' # emotion_model.hdf5'
 emotion_labels = get_labels('fer2013')
 
 # loading models
 face_cascade = cv2.CascadeClassifier('./models/haarcascade_frontalface_default.xml')
 emotion_classifier = load_model(emotion_model_path)
+#print(emotion_classifier.fit) # not working cause of optimizer warning
 
 # getting input model shapes for inference
 emotion_target_size = emotion_classifier.input_shape[1:3]
@@ -188,9 +189,9 @@ for player in range(NUM_PLAYER):
             emotion_prediction = emotion_classifier.predict(gray_face)
             emotion_probability = np.max(emotion_prediction)
             wanted_emotion_prob = emotion_prediction[0, wanted_emotion[0]]
-            #emotion_label_arg = np.argmax(emotion_prediction)
-            #emotion_text = emotion_labels[emotion_label_arg]
-            #print('[INFO] predicted emotion: ' + emotion_text)
+            emotion_label_arg = np.argmax(emotion_prediction)
+            emotion_text = emotion_labels[emotion_label_arg]
+            print('[INFO] predicted emotion: ' + emotion_text + ' / ' + str(round(emotion_probability,2)))
             #print('[INFO] wanted probability: ' + str(wanted_emotion_prob))
 
             if predictCount > 1:
@@ -220,12 +221,15 @@ for player in range(NUM_PLAYER):
                 lcd.lcd_display_string('Player {}:'.format(player),1)
                 lcd.lcd_display_string(str(score_t),2)
 
-
             lastProb = wanted_emotion_prob
             predictCount += 1
 
-            print('[LOG] Full Pipeline Time ' + str(time.time() - last_t))
+            #print('[LOG] Full Pipeline Time ' + str(time.time() - last_t))
             pipeline_t.append(time.time() - last_t)
+
+        else:
+            # if no face detected
+            stepper.LEFT_TURN(1)
 
         diff_t = time.time() - start_t
         last_t = time.time()
