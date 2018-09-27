@@ -22,7 +22,7 @@ class Button(threading.Thread):
                     self.count += 1
                 else:
                     self.count = 0
-            time.sleep(1)
+            time.sleep(0.3)
 
     def clearCount(self):
         self.count = 0

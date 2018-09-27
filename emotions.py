@@ -106,7 +106,7 @@ if button.count != 0:
     lcd.lcd_display_string_animated_mid('    Have Fun    ', 2, 0.1)
     time.sleep(1)
     lcd.lcd_clear()
-button.clearCount()
+    button.clearCount()
 
 # Select Players
 lcd.lcd_clear()
@@ -121,54 +121,36 @@ button.clearCount()
 
 # Guess Game
 lcd.lcd_display_string_animated_mid('Guess Game', 1, 0.1)
-time.sleep(3)
-lcd.lcd_clear()
+lcd.lcd_display_string_animated_mid('Get in Position!', 2 , 0.1)
 
 for player in range(NUM_PLAYER):
 
-    # Player Setup
     stepper.calibrate()
     stepper.LEFT_TURN(bounds)
+
     if EASY_MODE:
         copy_emotions = EASY_EMOTIONS.copy()
-        keys = list(copy_emotions.keys())
-        shuffle(keys)
-        list = [(key, copy_emotions[key]) for key in keys]
-        mixed_emotions = dict()
-        [mixed_emotions.setdefault(key,value) for key,value in list]
     else:
-        mixed_emotions = emotion_labels.copy()
-        shuffle(mixed_emotions) # works cause no holes in iteratable keys
-    #print('[INFO] Mixed Emotions: ' + str(mixed_emotions))
-    wanted_emotion = mixed_emotions.popitem()
+        copy_emotions = emotion_labels.copy()
+    keys = list(copy_emotions.keys())
+    shuffle(keys)
+    mixed_emotions = [(key, copy_emotions[key]) for key in keys]
+    wanted_emotion = mixed_emotions.pop()
     print('[INFO] First wanted emotion: ' + str(wanted_emotion))
-    lastProb = 0
 
-    # Countdown
-    lcd.lcd_clear()
-    lcd.lcd_display_string_animated_mid('Get Ready!', 1, 0.1)
-    start_t, diff_t = time.time(), 0
-    while diff_t < 9:
-        diff_t = time.time() - start_t
-        elapsed_t = ' ' * 7 + str(9-round(diff_t))
-        lcd.lcd_display_string(elapsed_t, 2)
-    lcd.lcd_clear()
-
-    lcd.lcd_display_string('Player {}:'.format(player),1)
     start_t = last_t = time.time()
     score_t = diff_t = 0
-    lcd.lcd_display_string(str(score_t),2)
 
-    # performance
+    lastProb = None
     loopCount = 0
     predictCount = 0
-    lastPredCount = 0
+    pipeline_t = []
 
-    while diff_t < ROUND_TIME:
+    while diff_t < ROUND_TIME or lastProb == None:
 
-        if round(diff_t) > next_emotion_t:
+        if round(diff_t) > next_emotion_t and predictCount > 0:
             next_emotion_t += 10
-            wanted_emotion = mixed_emotions.popitem()
+            wanted_emotion = mixed_emotions.pop()
             print('[INFO] Next wanted emotion: ' + str(wanted_emotion))
 
         # get image from picamera
@@ -183,16 +165,16 @@ for player in range(NUM_PLAYER):
     			minSize=(30, 30), flags=cv2.CASCADE_SCALE_IMAGE)
 
         # select dominating face
-        curr, major = 0, None
+        curr, major_face = 0, None
         for i, (x, y, w, h) in enumerate(faces):
             if w * h > curr:
                 curr = w * h
-                major = i
+                major_face = i
 
         # predict emotions
-        if major != None:
+        if major_face != None:
             predict_t = time.time()
-            face_coordinates = faces[major]
+            face_coordinates = faces[major_face]
             x1, x2, y1, y2 = apply_offsets(face_coordinates, emotion_offsets)
             gray_face = gray_image[y1:y2, x1:x2]
             try:
@@ -205,28 +187,45 @@ for player in range(NUM_PLAYER):
             gray_face = np.expand_dims(gray_face, -1)
             emotion_prediction = emotion_classifier.predict(gray_face)
             emotion_probability = np.max(emotion_prediction)
-            emotion_label_arg = np.argmax(emotion_prediction)
-            emotion_text = emotion_labels[emotion_label_arg]
             wanted_emotion_prob = emotion_prediction[0, wanted_emotion[0]]
+            #emotion_label_arg = np.argmax(emotion_prediction)
+            #emotion_text = emotion_labels[emotion_label_arg]
             #print('[INFO] predicted emotion: ' + emotion_text)
             #print('[INFO] wanted probability: ' + str(wanted_emotion_prob))
 
-            if wanted_emotion_prob > level:
-                score_t = score_t + (time.time() - last_t)
-            lcd.lcd_display_string(str(round(score_t, 2)), 2)
-            step = round(step_scale * (100 * wanted_emotion_prob) - bounds - stepper.getPos(), 1)
-            #print('[INFO] StepperPos: ' + str(stepper.getPos()) + ' new step: ' + str(step) + ' lastProb ' + str(lastProb))
-            if wanted_emotion_prob > lastProb:
-                stepper.RIGHT_TURN(step)
-            else:
-                stepper.LEFT_TURN(abs(step))
+            if predictCount > 1:
+                if wanted_emotion_prob > level:
+                    score_t = score_t + (time.time() - last_t)
+                lcd.lcd_display_string(str(round(score_t, 2)), 2)
+                step = round(step_scale * (100 * wanted_emotion_prob) - bounds - stepper.getPos(), 1)
+                if wanted_emotion_prob > lastProb:
+                    stepper.RIGHT_TURN(step)
+                else:
+                    stepper.LEFT_TURN(abs(step))
+                #print('[INFO] StepperPos: ' + str(stepper.getPos()) + ' new step: ' + str(step) + ' lastProb ' + str(lastProb))
+
+            if predictCount == 0:
+                print('[INFO] Warmup Pipeline Time ' + str(time.time() - last_t))
+                # Countdown
+                lcd.lcd_clear()
+                lcd.lcd_display_string_animated_mid('Starts in', 1, 0.1)
+                start_t, diff_t = time.time(), 0
+                while diff_t < 5:
+                    diff_t = time.time() - start_t
+                    elapsed_t = ' ' * 7 + str(5-round(diff_t))
+                    lcd.lcd_display_string(elapsed_t, 2)
+                lcd.lcd_clear()
+                start_t = last_t = time.time()
+                score_t = diff_t = 0 
+                lcd.lcd_display_string('Player {}:'.format(player),1)
+                lcd.lcd_display_string(str(score_t),2)
+
 
             lastProb = wanted_emotion_prob
             predictCount += 1
 
-        if predictCount > lastPredCount:
             print('[LOG] Full Pipeline Time ' + str(time.time() - last_t))
-            lastPredCount += 1
+            pipeline_t.append(time.time() - last_t)
 
         diff_t = time.time() - start_t
         last_t = time.time()
@@ -238,8 +237,10 @@ for player in range(NUM_PLAYER):
             print('[INFO] Break by Button!')
             break
 
-    #print('[LOG] Loops per second: {}'.format(loopCount / ROUND_TIME))
+    #print('[LOG] Loops per second: {}'.format(loopCount / ROUND_TIME)) # not right anymore
     #print('[LOG] Prediction count: {}'.format(predictCount))
+    print('[LOG] Average Full Pipeline Time ' + str(sum(pipeline_t) / predictCount))
+    pipeline_t.clear()
 
     # displaying player score
     lcd.lcd_display_string_animated_mid('STOP!', 1, 0.05)
@@ -247,9 +248,11 @@ for player in range(NUM_PLAYER):
     scores.append(score_t)
     next_emotion_t = 10
     lcd.lcd_display_string_animated_mid('PL {} score is'.format(player), 1, 0.1)
-    time.sleep(5)
-
-#print('[LOG] Game finished in: {}'.format(round(time.time() - uptime), 2))
+    time.sleep(3)
+    if player+1 < NUM_PLAYER:
+        lcd.lcd_clear()
+        lcd.lcd_display_string_animated_mid('Next Player', 1, 0.1)
+        lcd.lcd_display_string_animated_mid('get ready...', 2, 0.1)
 
 # displaying results
 lcd.lcd_clear()
@@ -268,7 +271,7 @@ time.sleep(10)
 lcd.lcd_clear()
 lcd.lcd_backlight('off')
 button.stop()
-if USE_THREAD:
+if USE_THREAD and USE_CAM:
     vs.stop()
 else:
     cap.release()
