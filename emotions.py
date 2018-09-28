@@ -47,13 +47,18 @@ step_scale = (bounds * 2) / 100
 emotion_offsets = (20, 40)
 
 # parameters for loading data and images
-emotion_model_path = './models/mini_XCEPTION_KDEF.hdf5' #fer2013_mini_XCEPTION.119-0.65.hdf5' # emotion_model.hdf5'
+emotion_model_path = './models/fer2013_mini_XCEPTION.119-0.65.hdf5' # emotion_model.hdf5'
 emotion_labels = get_labels('fer2013')
 
 # loading models
 face_cascade = cv2.CascadeClassifier('./models/haarcascade_frontalface_default.xml')
 emotion_classifier = load_model(emotion_model_path)
-#print(emotion_classifier.fit) # not working cause of optimizer warning
+if False:
+    # print NN architecture
+    for layer in emotion_classifier.layers:
+        print(layer.config)
+        print(layer.input_shape)
+        print(layer.output_shape)
 
 # getting input model shapes for inference
 emotion_target_size = emotion_classifier.input_shape[1:3]
@@ -89,23 +94,22 @@ lcd.lcd_clear()
 
 # Skip Tutorial
 button.clearCount()
-lcd.lcd_display_string_animated_mid('Press Button', 1, 0.1)
+lcd.lcd_display_string_animated_mid('Push Button', 1, 0.1)
 lcd.lcd_display_string_animated_mid('for Tutorial', 2, 0.1)
 time.sleep(5)
 lcd.lcd_clear()
-
 # Tutorial
 if button.count != 0:
     lcd.lcd_display_string_animated_mid('TUTORIAL', 1, 0.1)
     time.sleep(1)
     lcd.lcd_display_string_long('There are seven emotions. Neutral, Happy, Angry, Sad, Disgust, Fear and Surprise.', 2, 0.1)
     time.sleep(0.5)
-    lcd.lcd_display_string_long('Guess the emotion by facial expressions. Then to keep the amplitude high.', 2, 0.1)
+    lcd.lcd_display_string_long('Guess the emotion by facial expressions. Then keep the amplitude high.', 2, 0.1)
     time.sleep(0.5)
-    lcd.lcd_display_string_long('Who perseveres the longest, is the KING.', 2, 0.1)
+    lcd.lcd_display_string_long('Who obtains the longest, is KING.', 2, 0.1)
     time.sleep(0.5)
     lcd.lcd_clear()
-    lcd.lcd_display_string_animated_mid('    Have Fun    ', 2, 0.1)
+    lcd.lcd_display_string_animated_mid('Have Fun', 2, 0.1)
     time.sleep(1)
     lcd.lcd_clear()
     button.clearCount()
@@ -278,8 +282,9 @@ while ENDLESS:
         diff_t = time.time() - start_t
         elapsed_t = ' ' * 7 + str(9-round(diff_t))
         lcd.lcd_display_string(elapsed_t, 2)
-        if button.count == 0:
+        if button.count > 0:
             ENDLESS = False
+            break
     lcd.lcd_clear()
     button.clearCount()
 

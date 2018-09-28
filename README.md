@@ -1,7 +1,7 @@
 # Emotion Metronom
 The Emotion Metronom is a Mini-Game-Modul to play with your facial expressions. Its software recognizes human faces and their corresponding emotions from webcam feed. Powered by OpenCV and Deep Learning deployed on an Raspberry Pi system.
 
-![Demo] (https://github.com/Coastinger/Emotronom/tree/master/demo/Emotronom_Demo_Game_2xspeed.gif?raw=true)
+![Demo](https://github.com/Coastinger/Emotronom/tree/master/demo/Emotronom_Demo_Game_2xspeed.gif?raw=true)
 ## Deep Learning Model
 
 The model used is from this [research paper](https://github.com/oarriaga/face_classification/blob/master/report.pdf) written by Octavio Arriaga, Paul G. Plöger, and Matias Valdenegro.
