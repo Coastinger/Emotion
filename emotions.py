@@ -206,7 +206,7 @@ for player in range(NUM_PLAYER):
                 #print('[INFO] StepperPos: ' + str(stepper.getPos()) + ' new step: ' + str(step) + ' lastProb ' + str(lastProb))
 
             if predictCount == 0:
-                print('[INFO] Warmup Pipeline Time ' + str(time.time() - last_t))
+                print('[INFO] Warmup Pipeline Time in ms ' + str((time.time() - last_t)*1000))
                 # Countdown
                 lcd.lcd_clear()
                 lcd.lcd_display_string_animated_mid('Starts in', 1, 0.1)
@@ -225,9 +225,9 @@ for player in range(NUM_PLAYER):
             predictCount += 1
 
             #print('[LOG] Full Pipeline Time ' + str(time.time() - last_t))
-            pipeline_t.append(time.time() - last_t)
+            pipeline_t.append((time.time() - last_t)*1000)
 
-        else:
+        elif predictCount > 0:
             # if no face detected
             stepper.LEFT_TURN(1)
 
@@ -243,7 +243,7 @@ for player in range(NUM_PLAYER):
 
     #print('[LOG] Loops per second: {}'.format(loopCount / ROUND_TIME)) # not right anymore
     #print('[LOG] Prediction count: {}'.format(predictCount))
-    print('[LOG] Average Full Pipeline Time ' + str(sum(pipeline_t) / predictCount))
+    print('[LOG] Average Full Pipeline Time in ms ' + str(sum(pipeline_t) / predictCount))
     pipeline_t.clear()
 
     # displaying player score
