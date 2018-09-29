@@ -51,7 +51,8 @@ emotion_model_path = './models/fer2013_mini_XCEPTION.119-0.65.hdf5' # emotion_mo
 emotion_labels = get_labels('fer2013')
 
 # loading models
-face_cascade = cv2.CascadeClassifier('./models/haarcascade_frontalface_default.xml')
+#face_cascade = cv2.CascadeClassifier('./models/haarcascade_frontalface_default.xml')
+face_cascade = cv2.CascadeClassifier('./models/lbpcascade_frontalface_improved.xml')
 emotion_classifier = load_model(emotion_model_path)
 if False:
     # print NN architecture
