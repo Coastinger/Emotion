@@ -18,6 +18,7 @@ from picamera.array import PiRGBArray
 import modules.PiVideoStream as PiVideoStream
 import modules.lcddriver as lcddriver
 import modules.Stepper as Stepper
+import modules.Stepper_old as Stepper_old
 import modules.PiButton as PiButton
 import RPi.GPIO as GPIO
 from random import shuffle
@@ -39,8 +40,9 @@ USE_THREAD = True
 button = PiButton.Button(37)
 
 # set up stepper
-bounds = 35
-stepper = Stepper.Stepper(bounds)
+bounds = 30
+#stepper = Stepper_old.Stepper(bounds)
+stepper = Stepper.Stepper(bounds, 7, 11, 13, 15)
 step_scale = (bounds * 2) / 100
 
 # hyper-parameters for bounding box shape
@@ -51,8 +53,8 @@ emotion_model_path = './models/fer2013_mini_XCEPTION.119-0.65.hdf5' # emotion_mo
 emotion_labels = get_labels('fer2013')
 
 # loading models
-#face_cascade = cv2.CascadeClassifier('./models/haarcascade_frontalface_default.xml')
-face_cascade = cv2.CascadeClassifier('./models/lbpcascade_frontalface_improved.xml')
+face_cascade = cv2.CascadeClassifier('./models/haarcascade_frontalface_default.xml')
+#face_cascade = cv2.CascadeClassifier('./models/lbpcascade_frontalface_improved.xml')
 emotion_classifier = load_model(emotion_model_path)
 if False:
     # print NN architecture
@@ -121,7 +123,7 @@ lcd.lcd_display_string_animated_mid('Number of Player', 1, 0.1)
 start_t, diff_t = time.time(), 0
 while diff_t < 9:
     diff_t = time.time() - start_t
-    lcd.lcd_display_string(str(button.count + 1), 2)
+    lcd.lcd_display_string(' ' * 7 + str(button.count + 1), 2)
 NUM_PLAYER = button.count + 1
 lcd.lcd_clear()
 button.clearCount()
@@ -133,8 +135,10 @@ while ENDLESS:
 
     for player in range(NUM_PLAYER):
 
-        stepper.calibrate()
-        stepper.LEFT_TURN(bounds)
+        #stepper.calibrate()
+        #stepper.LEFT_TURN(bounds)
+        stepper.setMove(0)
+        stepper.setMove(-bounds)
 
         if EASY_MODE:
             copy_emotions = EASY_EMOTIONS.copy()
@@ -205,15 +209,21 @@ while ENDLESS:
                     if wanted_emotion_prob > level:
                         score_t = score_t + (time.time() - last_t)
                     lcd.lcd_display_string(str(round(score_t, 2)), 2)
-                    step = round(step_scale * (100 * wanted_emotion_prob) - bounds - stepper.getPos(), 1)
-                    if wanted_emotion_prob > lastProb:
-                        stepper.RIGHT_TURN(step)
-                    else:
-                        stepper.LEFT_TURN(abs(step))
+                    before_step = time.time()
+                    #step = round(step_scale * (100 * wanted_emotion_prob) - bounds - stepper.getPos())
+                    step = round(-bounds + bounds * 2 * wanted_emotion_prob)
+                    stepper.setMove(step)
+                    #stepper.stopMove()
+                    if False:
+                        if wanted_emotion_prob > lastProb:
+                            stepper.RIGHT_TURN(step)
+                        else:
+                            stepper.LEFT_TURN(abs(step))
                     #print('[INFO] StepperPos: ' + str(stepper.getPos()) + ' new step: ' + str(step) + ' lastProb ' + str(lastProb))
+                    #print('[INFO] Stepper Time: ' + str(round(1000*(time.time() - before_step), 2)))
 
                 if predictCount == 0:
-                    print('[INFO] Warmup Pipeline Time in ms ' + str((time.time() - last_t)*1000))
+                    print('[LOG] Warmup Pipeline Time in ms ' + str((time.time() - last_t)*1000))
                     # Countdown
                     lcd.lcd_clear()
                     lcd.lcd_display_string_animated_mid('Starts in', 1, 0.1)
@@ -232,11 +242,13 @@ while ENDLESS:
                 predictCount += 1
 
                 #print('[LOG] Full Pipeline Time ' + str(time.time() - last_t))
-                pipeline_t.append((time.time() - last_t)*1000)
+                if predictCount > 1:
+                    pipeline_t.append((time.time() - last_t)*1000)
 
             elif predictCount > 0:
                 # if no face detected
-                stepper.LEFT_TURN(1)
+                #stepper.LEFT_TURN(1)
+                stepper.setMove(stepper.getPos()-1)
 
             diff_t = time.time() - start_t
             last_t = time.time()
@@ -250,7 +262,8 @@ while ENDLESS:
 
         #print('[LOG] Loops per second: {}'.format(loopCount / ROUND_TIME)) # not right anymore
         #print('[LOG] Prediction count: {}'.format(predictCount))
-        print('[LOG] Average Full Pipeline Time in ms ' + str(sum(pipeline_t) / predictCount))
+        if predictCount > 0:
+            print('[LOG] Average Full Pipeline Time in ms ' + str(sum(pipeline_t) / (predictCount-1)))
         pipeline_t.clear()
 
         # displaying player score
@@ -269,7 +282,8 @@ while ENDLESS:
     lcd.lcd_clear()
     time.sleep(0.5)
     lcd.lcd_display_string_animated_mid('Game done!', 1, 0.1)
-    stepper.calibrate()
+    #stepper.calibrate()
+    stepper.setMove(0)
     time.sleep(2)
     lcd.lcd_display_string_animated_mid('Winner is PL {}'.format(scores.index(max(scores))), 1, 0.1)
     lcd.lcd_display_string_animated_mid('with time {}'.format(round(max(scores),2)), 2, 0.1)
@@ -293,6 +307,7 @@ while ENDLESS:
 lcd.lcd_clear()
 lcd.lcd_backlight('off')
 button.stop()
+stepper.stop()
 if USE_THREAD and USE_CAM:
     vs.stop()
 else:
