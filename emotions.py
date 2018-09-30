@@ -6,13 +6,8 @@ import cv2
 import numpy as np
 from random import shuffle
 from keras.models import load_model
-#from statistics import mode
 from utils.datasets import get_labels
-#from utils.inference import detect_faces
-#from utils.inference import draw_text
-#from utils.inference import draw_bounding_box
 from utils.inference import apply_offsets
-#from utils.inference import load_detection_model
 from utils.preprocessor import preprocess_input
 from picamera import PiCamera
 from picamera.array import PiRGBArray
@@ -21,8 +16,10 @@ import RPi.GPIO as GPIO
 import modules.lcddriver as lcddriver
 import modules.StepperThread as StepperThread
 #import modules.Stepper as Stepper
-import modules.PiButton as PiButton
+#import modules.PiButton as PiButton
+import modules.PiStreamAndButton as PiStreamAndButton
 
+PERF = False
 
 ENDLESS = True
 NUM_PLAYER = 1
@@ -38,7 +35,7 @@ USE_CAM = True # If false, loads video file source
 USE_THREAD = True
 
 # start button thread
-button = PiButton.Button(37)
+#button = PiButton.Button(37)
 
 # set up stepper
 bounds = 30
@@ -71,8 +68,11 @@ emotion_target_size = emotion_classifier.input_shape[1:3]
 cap = None
 if USE_CAM:
     if USE_THREAD:
-        vs = PiVideoStream.PiVideoStream().start()
+        #vs = PiVideoStream.PiVideoStream().start()
+        vs = PiStreamAndButton.PiStreamAndButton().start()
         time.sleep(1)
+        if PERF:
+            cap =cv2.VideoCapture('./demo/dinner.mp4')
     else:
         camera = PiCamera()
         camera.resolution = (320, 240)
@@ -97,13 +97,13 @@ time.sleep(3)
 lcd.lcd_clear()
 
 # Skip Tutorial
-button.clearCount()
+vs.button.clearCount()
 lcd.lcd_display_string_animated_mid('Push Button', 1, 0.1)
 lcd.lcd_display_string_animated_mid('for Tutorial', 2, 0.1)
 time.sleep(5)
 lcd.lcd_clear()
 # Tutorial
-if button.count != 0:
+if vs.button.count != 0:
     lcd.lcd_display_string_animated_mid('TUTORIAL', 1, 0.1)
     time.sleep(1)
     lcd.lcd_display_string_long('There are seven emotions. Neutral, Happy, Angry, Sad, Disgust, Fear and Surprise.', 2, 0.1)
@@ -116,7 +116,7 @@ if button.count != 0:
     lcd.lcd_display_string_animated_mid('Have Fun', 2, 0.1)
     time.sleep(1)
     lcd.lcd_clear()
-    button.clearCount()
+    vs.button.clearCount()
 
 # Select Players
 lcd.lcd_clear()
@@ -124,12 +124,28 @@ lcd.lcd_display_string_animated_mid('Player Number', 1, 0.1)
 start_t, diff_t = time.time(), 0
 while diff_t < 9:
     diff_t = time.time() - start_t
-    lcd.lcd_display_string(' ' * 7 + str(button.count + 1), 2)
-NUM_PLAYER = button.count + 1
+    lcd.lcd_display_string(' ' * 7 + str(vs.button.count + 1), 2)
+NUM_PLAYER = vs.button.count + 1
 lcd.lcd_clear()
-button.clearCount()
+vs.button.clearCount()
 
 while ENDLESS:
+
+    # Select Difficulty
+    lcd.lcd_clear()
+    lcd.lcd_display_string_animated_mid('Level', 1, 0.1)
+    start_t, diff_t = time.time(), 0
+    while diff_t < 5:
+        diff_t = time.time() - start_t
+        if vs.button.count % 2:
+            lcd.lcd_display_string_animated_mid('Master', 2, 0.0)
+            EASY_MODE = False
+        else:
+            lcd.lcd_display_string_animated_mid('Beginner', 2, 0.0)
+            EASY_MODE = True
+    lcd.lcd_clear()
+    vs.button.clearCount()
+
     # Guess Game
     lcd.lcd_display_string_animated_mid('Guess Game', 1, 0.1)
     lcd.lcd_display_string_animated_mid('Get in Position!', 2 , 0.1)
@@ -167,11 +183,12 @@ while ENDLESS:
                 print('[INFO] Next wanted emotion: ' + str(wanted_emotion))
 
             # get image from picamera
-            if USE_CAM and USE_THREAD:
-                bgr_image = vs.read()
-            else:
+            if PERF: #USE_CAM and USE_THREAD:
                 if cap.isOpened():
                     ret, bgr_image = cap.read()
+            else:
+                bgr_image = vs.read()
+
             gray_image = cv2.cvtColor(bgr_image, cv2.COLOR_BGR2GRAY)
 
             # detect faces
@@ -210,7 +227,7 @@ while ENDLESS:
                 if predictCount > 1:
                     if wanted_emotion_prob > level:
                         score_t = score_t + (time.time() - last_t)
-                    lcd.lcd_display_string(str(round(score_t, 2)), 2)
+                    lcd.lcd_display_string(' ' * 6 + str(round(score_t, 2)), 2)
                     #before_step = time.time()
                     #step = round(step_scale * (100 * wanted_emotion_prob) - bounds - stepper.getPos())
                     step = round(-bounds + bounds * 2 * wanted_emotion_prob)
@@ -236,7 +253,7 @@ while ENDLESS:
                     lcd.lcd_clear()
                     start_t = last_t = time.time()
                     score_t = diff_t = 0
-                    lcd.lcd_display_string('Player {} Score'.format(player),1)
+                    lcd.lcd_display_string(' Player {} Score'.format(player),1)
                     lcd.lcd_display_string(' ' * 6 + str(score_t),2)
 
                 lastProb = wanted_emotion_prob
@@ -256,18 +273,20 @@ while ENDLESS:
 
             loopCount += 1
 
-            if button.count != 0:
-                button.clearCount()
+            if vs.button.count != 0:
+                vs.button.clearCount()
                 lcd.lcd_clear()
                 print('[INFO] Break by Button!')
                 break
 
         #print('[LOG] Prediction count: {}'.format(predictCount))
         if predictCount > 0:
+            print('[LOG] PredictionCount ' + str(predictCount))
             print('[LOG] Average Full Pipeline Time in ms ' + str(sum(pipeline_t) / (predictCount-1)))
         pipeline_t.clear()
 
         # displaying player score
+        lcd.lcd_display_string(' ' * 16, 1)
         lcd.lcd_display_string_animated_mid('STOP!', 1, 0.05)
         time.sleep(1)
         scores.append(score_t)
@@ -298,16 +317,16 @@ while ENDLESS:
         diff_t = time.time() - start_t
         elapsed_t = ' ' * 7 + str(9-round(diff_t))
         lcd.lcd_display_string(elapsed_t, 2)
-        if button.count > 0:
+        if vs.button.count > 0:
             ENDLESS = False
             break
     lcd.lcd_clear()
-    button.clearCount()
+    vs.button.clearCount()
 
 # cleanup
 lcd.lcd_clear()
 lcd.lcd_backlight('off')
-button.stop()
+vs.button.stop()
 stepper.stop()
 if USE_THREAD and USE_CAM:
     vs.stop()

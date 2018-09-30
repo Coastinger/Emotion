@@ -2,11 +2,11 @@
 from picamera.array import PiRGBArray
 from picamera import PiCamera
 from threading import Thread
-import PiButton
+import modules.PiButton
 import cv2
 
 class PiStreamAndButton:
-	def __init__(self, resolution=(320, 240), framerate=20, channel):
+	def __init__(self, resolution=(320, 240), framerate=20, channel=37):
 		# initialize the camera and stream
 		self.camera = PiCamera()
 		self.camera.resolution = resolution
@@ -21,7 +21,7 @@ class PiStreamAndButton:
 		self.stopped = False
 
 		# initialte the Button
-		self.button = PiButton.Button(channel)
+		self.button = modules.PiButton.Button(channel)
 
 	def start(self):
 		# start the thread to read frames from the video stream
