@@ -9,17 +9,13 @@ from keras.models import load_model
 from utils.datasets import get_labels
 from utils.inference import apply_offsets
 from utils.preprocessor import preprocess_input
-from picamera import PiCamera
-from picamera.array import PiRGBArray
 import modules.PiVideoStream as PiVideoStream
 import RPi.GPIO as GPIO
 import modules.lcddriver as lcddriver
 import modules.StepperThread as StepperThread
-#import modules.Stepper as Stepper
-#import modules.PiButton as PiButton
 import modules.PiStreamAndButton as PiStreamAndButton
 
-PERF = False
+USE_VIDEO = False
 
 ENDLESS = True
 NUM_PLAYER = 1
@@ -31,15 +27,8 @@ scores = []
 level = 0.51 # emotion prob. needs to be higher to score
 EASY_MODE = True
 
-USE_CAM = True # If false, loads video file source
-USE_THREAD = True
-
-# start button thread
-#button = PiButton.Button(37)
-
 # set up stepper
-bounds = 30
-#stepper = Stepper.Stepper(bounds)
+bounds = 35
 stepper = StepperThread.Stepper(bounds, 7, 11, 13, 15)
 step_scale = (bounds * 2) / 100
 
@@ -64,24 +53,11 @@ if False:
 # getting input model shapes for inference
 emotion_target_size = emotion_classifier.input_shape[1:3]
 
-# Select video or webcam feed
-cap = None
-if USE_CAM:
-    if USE_THREAD:
-        #vs = PiVideoStream.PiVideoStream().start()
-        vs = PiStreamAndButton.PiStreamAndButton().start()
-        time.sleep(1)
-        if PERF:
-            cap =cv2.VideoCapture('./demo/dinner.mp4')
-    else:
-        camera = PiCamera()
-        camera.resolution = (320, 240)
-        camera.framerate = 32
-        rawCapture = PiRGBArray(camera, size=(320, 240))
-        cap = camera.capture_continuous(rawCapture, format="bgr",
-        	use_video_port=True)
-        time.sleep(1)
-else:
+# Initiate webcam feed and Button
+vs = PiStreamAndButton.PiStreamAndButton().start()
+time.sleep(1)
+
+if USE_VIDEO:
     cap = cv2.VideoCapture('./demo/dinner.mp4')
 
 # init lcd display
@@ -106,12 +82,31 @@ lcd.lcd_clear()
 if vs.button.count != 0:
     lcd.lcd_display_string_animated_mid('TUTORIAL', 1, 0.1)
     time.sleep(1)
-    lcd.lcd_display_string_long('There are seven emotions. Neutral, Happy, Angry, Sad, Disgust, Fear and Surprise.', 2, 0.1)
+    lcd.lcd_clear()
+    lcd.lcd_display_string_animated_mid('Seven Emotions',1,0.1)
     time.sleep(0.5)
-    lcd.lcd_display_string_long('Guess the emotion by facial expressions. Then keep the amplitude high.', 2, 0.1)
+    lcd.lcd_display_string_animated_mid('Neutral , Happy',2,0.1)
+    time.sleep(0.2)
+    lcd.lcd_display_string(' ' * 16, 2)
+    lcd.lcd_display_string_animated_mid('Angry , Sad',2,0.1)
+    time.sleep(0.2)
+    lcd.lcd_display_string(' ' * 16, 2)
+    lcd.lcd_display_string_animated_mid('Disgust , Fear',2,0.1)
+    time.sleep(0.2)
+    lcd.lcd_display_string(' ' * 16, 2)
+    lcd.lcd_display_string_animated_mid('and Surprise',2,0.1)
     time.sleep(0.5)
-    lcd.lcd_display_string_long('Who obtains the longest, is KING.', 2, 0.1)
-    time.sleep(0.5)
+    lcd.lcd_clear()
+    lcd.lcd_display_string_animated_mid('Make a guess',1,0.1)
+    time.sleep(0.1)
+    lcd.lcd_display_string_animated_mid('by facial- ',2,0.1)
+    time.sleep(0.2)
+    lcd.lcd_display_string_animated_mid('expressions',2,0.1)
+    time.sleep(1)
+    lcd.lcd_clear()
+    lcd.lcd_display_string_animated_mid('Goal is to', 1, 0.1)
+    lcd.lcd_display_string_animated_mid('last the longest',2,0.1)
+    time.sleep(1)
     lcd.lcd_clear()
     lcd.lcd_display_string_animated_mid('Have Fun', 2, 0.1)
     time.sleep(1)
@@ -152,8 +147,6 @@ while ENDLESS:
 
     for player in range(NUM_PLAYER):
 
-        #stepper.calibrate()
-        #stepper.LEFT_TURN(bounds)
         stepper.setMove(0)
         stepper.setMove(-bounds)
 
@@ -183,7 +176,7 @@ while ENDLESS:
                 print('[INFO] Next wanted emotion: ' + str(wanted_emotion))
 
             # get image from picamera
-            if PERF: #USE_CAM and USE_THREAD:
+            if USE_VIDEO:
                 if cap.isOpened():
                     ret, bgr_image = cap.read()
             else:
@@ -229,7 +222,6 @@ while ENDLESS:
                         score_t = score_t + (time.time() - last_t)
                     lcd.lcd_display_string(' ' * 6 + str(round(score_t, 2)), 2)
                     #before_step = time.time()
-                    #step = round(step_scale * (100 * wanted_emotion_prob) - bounds - stepper.getPos())
                     step = round(-bounds + bounds * 2 * wanted_emotion_prob)
                     stepper.setMove(step)
                     if False:
@@ -253,7 +245,7 @@ while ENDLESS:
                     lcd.lcd_clear()
                     start_t = last_t = time.time()
                     score_t = diff_t = 0
-                    lcd.lcd_display_string(' Player {} Score'.format(player),1)
+                    lcd.lcd_display_string(' Player {} Score'.format(player+1),1)
                     lcd.lcd_display_string(' ' * 6 + str(score_t),2)
 
                 lastProb = wanted_emotion_prob
@@ -265,7 +257,6 @@ while ENDLESS:
 
             elif predictCount > 0:
                 # if no face detected
-                #stepper.LEFT_TURN(1)
                 stepper.setMove(stepper.getPos()-1)
 
             diff_t = time.time() - start_t
@@ -279,8 +270,7 @@ while ENDLESS:
                 print('[INFO] Break by Button!')
                 break
 
-        #print('[LOG] Prediction count: {}'.format(predictCount))
-        if predictCount > 0:
+        if predictCount > 1:
             print('[LOG] PredictionCount ' + str(predictCount))
             print('[LOG] Average Full Pipeline Time in ms ' + str(sum(pipeline_t) / (predictCount-1)))
         pipeline_t.clear()
@@ -291,7 +281,7 @@ while ENDLESS:
         time.sleep(1)
         scores.append(score_t)
         next_emotion_t = 10
-        lcd.lcd_display_string_animated_mid('PL {} score is'.format(player), 1, 0.1)
+        lcd.lcd_display_string_animated_mid('PL {} score is'.format(player+1), 1, 0.1)
         time.sleep(3)
         if player+1 < NUM_PLAYER:
             lcd.lcd_clear()
@@ -305,7 +295,7 @@ while ENDLESS:
     #stepper.calibrate()
     stepper.setMove(0)
     time.sleep(2)
-    lcd.lcd_display_string_animated_mid('Winner is PL {}'.format(scores.index(max(scores))), 1, 0.1)
+    lcd.lcd_display_string_animated_mid('Winner is PL {}'.format(scores.index(max(scores))+1), 1, 0.1)
     lcd.lcd_display_string_animated_mid('with time {}'.format(round(max(scores),2)), 2, 0.1)
     time.sleep(5)
 
@@ -328,10 +318,7 @@ lcd.lcd_clear()
 lcd.lcd_backlight('off')
 vs.button.stop()
 stepper.stop()
-if USE_THREAD and USE_CAM:
-    vs.stop()
-else:
+vs.stop()
+if USE_VIDEO:
     cap.release()
-    rawCapture.close()
-    camera.close()
 cv2.destroyAllWindows()
