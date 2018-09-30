@@ -170,7 +170,8 @@ while ENDLESS:
             if USE_CAM and USE_THREAD:
                 bgr_image = vs.read()
             else:
-                ret, bgr_image = cap.read()
+                if cap.isOpened():
+                    ret, bgr_image = cap.read()
             gray_image = cv2.cvtColor(bgr_image, cv2.COLOR_BGR2GRAY)
 
             # detect faces
