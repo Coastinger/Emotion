@@ -1,4 +1,4 @@
-# Emotion Metronom
+# Emotronom - Emotion Detection
 
 The Emotion Metronom is a Mini-Game-Modul to play with your facial expressions. Its software recognizes human faces and their corresponding emotions from webcam feed. Powered by OpenCV and Deep Learning deployed on an Raspberry Pi system.
 
