@@ -137,7 +137,7 @@ while ENDLESS:
             lcd.lcd_display_string_animated_mid('Master', 2, 0.0)
             EASY_MODE = False
         else:
-            lcd.lcd_display_string(' ' * 16, 2)
+            #lcd.lcd_display_string(' ' * 16, 2)
             lcd.lcd_display_string_animated_mid('Beginner', 2, 0.0)
             EASY_MODE = True
     lcd.lcd_clear()
