@@ -32,7 +32,7 @@ The provided blueprint shows the dimensions for the module. I cutted the parts o
 
 <p align='center'><img src = 'demo/Emotronom_Blueprint_800x600.jpg' height = '600px'></p>
 
-<p align='center'><img src = 'demo/Emotronom_2.jpg' height = '500px'>></p>
+<p align='center'><img src = 'demo/Emotronom_2.jpg' height = '500px'></p>
 
 ## Install
 
@@ -49,4 +49,4 @@ After installing the main requirements clone this repository onto the raspi and 
 ## Credit
 
 * Octavio Arriaga, Matias Valdenegro-Toro, Paul Plöger.
-Real-time Convolutional Neural Networks for Emotion and Gender Classification [research paper](https://github.com/oarriaga/face_classification/blob/master/report.pdf).
+Real-time Convolutional Neural Networks for Emotion and Gender Classification [research paper](https://github.com/oarriaga/face_classification/blob/master/report.pdf)
